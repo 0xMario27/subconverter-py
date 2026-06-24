@@ -370,8 +370,39 @@ def proxy_to_surge(nodes: List[Proxy], base_conf: str,
 
     # Generate proxy groups
     result.append("[Proxy Group]")
+    all_remark_names = [n.Remark for n in nodes if n.Remark]
+    used_in_groups = set()
+
     for g in extra_groups:
-        proxies_str = ', '.join(g.Proxies)
+        proxies = []
+        for rule in g.Proxies:
+            if rule == '.*':
+                # Wildcard: add all nodes not yet used in any group
+                for r in all_remark_names:
+                    if r not in used_in_groups:
+                        proxies.append(r)
+                        used_in_groups.add(r)
+            elif rule.startswith('!!GROUP='):
+                # Group name matcher (simplified)
+                target_group = rule[8:]
+                for node in nodes:
+                    if node.Group == target_group and node.Remark not in used_in_groups:
+                        proxies.append(node.Remark)
+                        used_in_groups.add(node.Remark)
+            elif rule.startswith('!!GROUPID='):
+                # Group ID matcher (skip for simplicity)
+                pass
+            elif rule == 'DIRECT' or rule == 'REJECT' or rule == 'REJECT-TINYGIF':
+                proxies.append(rule)
+            else:
+                # Static proxy name
+                proxies.append(rule)
+                used_in_groups.add(rule)
+
+        if not proxies:
+            continue
+
+        proxies_str = ', '.join(proxies)
         group_line = f"{g.Name} = {str(g.Type)}, {proxies_str}"
         if g.Url:
             group_line += f", url = {g.Url}, interval = {g.Interval}"
