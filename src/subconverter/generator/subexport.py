@@ -131,23 +131,26 @@ def proxy_to_clash(nodes: List[Proxy], base_conf: str,
     if not isinstance(config, dict):
         config = {}
 
-    # Generate proxies
+    # Generate proxies in flow style
     proxy_list = []
     for node in nodes:
         proxy = _clash_proxy(node, clash_r)
         if proxy:
             proxy_list.append(proxy)
     config['proxies'] = proxy_list
+    config.pop('Proxy', None)  # Remove old uppercase key from base template
+    config.pop('Proxy Group', None)
+    config.pop('Rule', None)
 
     # Generate proxy groups
     _add_clash_proxy_groups(config, nodes, extra_groups, settings)
 
-    # Handle rules
+    # Handle rules (with rule-providers support)
     if settings and settings.enable_rule_generator and ruleset_content:
         _render_clash_rules(config, ruleset_content, settings)
 
-    return yaml.dump(config, allow_unicode=True, default_flow_style=False,
-                     sort_keys=False, width=120)
+    # Custom YAML dump with flow-style proxies
+    return _clash_yaml_dump(config)
 
 
 def _clash_proxy(node: Proxy, clash_r: bool = False) -> Optional[Dict]:
@@ -305,6 +308,7 @@ def _add_clash_proxy_groups(config: dict, nodes: List[Proxy],
         groups.insert(0, default_group)
 
     config['proxy-groups'] = []
+    config.pop('Proxy Group', None)  # Remove old uppercase key
     for g in groups:
         group = {
             'name': g.Name,
@@ -327,11 +331,114 @@ def _add_clash_proxy_groups(config: dict, nodes: List[Proxy],
         config['proxy-groups'].append(group)
 
 
+def _clash_yaml_dump(config: dict) -> str:
+    """Custom YAML dump with flow-style proxies and rule-providers."""
+    output_lines = []
+
+    def _dump_section(key, value, indent=0):
+        """Dump a key-value pair, proxies/proxy-groups as flow style."""
+        prefix = '  ' * indent
+        if key in ('proxies', 'proxy-groups') and isinstance(value, list):
+            output_lines.append(f'{prefix}{key}:')
+            for proxy in value:
+                # Convert to flow mapping: {name: "x", type: ss, ...}
+                parts = []
+                for k, v in proxy.items():
+                    if isinstance(v, bool):
+                        parts.append(f'{k}: {str(v).lower()}')
+                    elif isinstance(v, str):
+                        # Quote strings that contain special chars
+                        if any(c in v for c in ':,[]{}#&*!|>\'"%@` '):
+                            parts.append(f'{k}: "{v}"')
+                        else:
+                            parts.append(f'{k}: {v}')
+                    elif isinstance(v, int):
+                        parts.append(f'{k}: {v}')
+                    elif isinstance(v, dict):
+                        inner = ', '.join(f'{ik}: "{iv}"' if isinstance(iv, str) else f'{ik}: {iv}'
+                                        for ik, iv in v.items())
+                        parts.append(f'{k}: {{{inner}}}')
+                    elif isinstance(v, list):
+                        inner = ', '.join(f'"{iv}"' if isinstance(iv, str) else str(iv) for iv in v)
+                        parts.append(f'{k}: [{inner}]')
+                output_lines.append(f'{prefix}  - {{{', '.join(parts)}}}')
+        elif isinstance(value, list):
+            output_lines.append(f'{prefix}{key}:')
+            for item in value:
+                if isinstance(item, str):
+                    output_lines.append(f'{prefix}  - {item}')
+                elif isinstance(item, dict):
+                    first = True
+                    for ik, iv in item.items():
+                        if first:
+                            output_lines.append(f'{prefix}  - {ik}: {iv}')
+                            first = False
+                        else:
+                            output_lines.append(f'{prefix}    {ik}: {iv}')
+        elif isinstance(value, dict):
+            output_lines.append(f'{prefix}{key}:')
+            for k, v in value.items():
+                if isinstance(v, dict):
+                    output_lines.append(f'{prefix}  {k}:')
+                    for ik, iv in v.items():
+                        output_lines.append(f'{prefix}    {ik}: {iv}')
+                else:
+                    output_lines.append(f'{prefix}  {k}: {v}')
+        elif value is None:
+            pass
+        else:
+            output_lines.append(f'{prefix}{key}: {value}')
+
+    # Dump all top-level keys
+    for key, value in config.items():
+        _dump_section(key, value)
+
+    return '\n'.join(output_lines) + '\n'
+
+
 def _render_clash_rules(config: dict, ruleset_content: List[RulesetContent],
                         settings: 'ExtraSettings'):
-    """Render rules for Clash config."""
+    """Render rules for Clash config with rule-providers support."""
     rules = []
+    rule_providers = config.get('rule-providers', {})
+
     for rc in ruleset_content:
+        rule_path = rc.rule_path or ""
+
+        # Remote URL → create rule-provider + RULE-SET reference
+        if rule_path.startswith('http://') or rule_path.startswith('https://'):
+            import hashlib
+            # Generate a unique provider name from the URL
+            provider_name = 'rule_' + hashlib.md5(rule_path.encode()).hexdigest()[:8]
+            interval = rc.update_interval or 86400
+            # Determine behavior based on rule content
+            content = rc.rule_content or ""
+            if content and ('IP-CIDR' in content[:500] or 'IP-CIDR6' in content[:500]):
+                behavior = 'ipcidr'
+            elif content and ('DOMAIN' in content[:500]):
+                behavior = 'domain'
+            else:
+                behavior = 'classical'
+
+            rule_providers[provider_name] = {
+                'type': 'http',
+                'behavior': behavior,
+                'url': rule_path,
+                'path': f'./providers/{provider_name}.yaml',
+                'interval': interval
+            }
+            rules.append(f'RULE-SET,{provider_name},{rc.rule_group}')
+            continue
+
+        # Inline rule (GEOIP, FINAL, etc.)
+        if rule_path.startswith('inline:') or (rc.rule_content or '').startswith('GEOIP') or (rc.rule_content or '').startswith('FINAL'):
+            rule_text = (rc.rule_content or '').strip()
+            if rule_text == 'FINAL':
+                rule_text = 'MATCH'
+            rules.append(f'{rule_text},{rc.rule_group}')
+            continue
+
+        # Local ruleset → expand inline
         content = rc.rule_content or ""
         if not content:
             continue
@@ -345,6 +452,8 @@ def _render_clash_rules(config: dict, ruleset_content: List[RulesetContent],
             else:
                 rules.append(f"{trim(line)},{rc.rule_group}")
 
+    if rule_providers:
+        config['rule-providers'] = rule_providers
     if rules:
         config['rules'] = rules
 
