@@ -1,0 +1,17 @@
+# Docker Compose for subconverter-py
+
+version: '3'
+
+services:
+  subconverter:
+    image: ghcr.io/0xmario27/subconverter-py:latest
+    container_name: subconverter-py
+    ports:
+      - "25500:25500"
+    restart: always
+    environment:
+      - API_MODE=true
+      - PORT=25500
+    volumes:
+      - ./pref.toml:/app/base/pref.toml
+      - ./cache:/app/base/cache
