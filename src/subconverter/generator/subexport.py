@@ -404,51 +404,133 @@ def proxy_to_surge(nodes: List[Proxy], base_conf: str,
 
 
 def _surge_proxy(node: Proxy) -> Optional[str]:
-    """Convert proxy node to Surge format line."""
+    """Convert proxy node to Surge format line. Matches original subconverter C++ format."""
     name = node.Remark or f"{node.Hostname}:{node.Port}"
+    host = node.Hostname
+    port = str(node.Port)
+    password = node.Password
+    username = node.Username
 
     if node.Type == ProxyType.Shadowsocks:
-        encryption = {'rc4-md5': 'rc4-md5', 'aes-128-gcm': 'aes-128-gcm',
-                      'aes-256-gcm': 'aes-256-gcm', 'chacha20-ietf-poly1305': 'chacha20-ietf-poly1305'}
-        cipher = encryption.get(node.EncryptMethod, node.EncryptMethod)
-        return f"{name} = ss, {node.Hostname}, {node.Port}, encrypt-method={cipher}, password={node.Password}"
-    elif node.Type == ProxyType.ShadowsocksR:
-        return f"{name} = custom, {node.Hostname}, {node.Port}, {node.EncryptMethod}, {node.Password}, https://raw.githubusercontent.com/ConnersHua/SSRouter/master/SSR.module"
+        return f"{name} = ss, {host}, {port}, encrypt-method={node.EncryptMethod}, password={password}"
+
     elif node.Type == ProxyType.VMess:
-        opts = []
-        if node.TLSStr:
-            opts.append("tls=true")
-        if node.Path:
-            opts.append(f"ws-path={node.Path}")
-        if node.Host:
-            opts.append(f"ws-headers=Host:{node.Host}")
-        opts_str = ', '.join(opts)
-        return f"{name} = vmess, {node.Hostname}, {node.Port}, username={node.UserId}, {opts_str}"
+        proxy = f"{name} = vmess, {host}, {port}, username={node.UserId}"
+        if node.TransferProtocol == 'ws':
+            proxy += f", ws=true, ws-path={node.Path or '/'}"
+            if node.Host:
+                proxy += f", ws-headers=Host:{node.Host}"
+        if node.TLSStr == 'tls':
+            proxy += ", tls=true"
+            sni = node.ServerName or node.SNI or ''
+            if sni:
+                proxy += f", sni={sni}"
+        if node.AllowInsecure is not None:
+            proxy += f", skip-cert-verify={str(node.AllowInsecure).lower()}"
+        return proxy
+
+    elif node.Type == ProxyType.ShadowsocksR:
+        # SSR in Surge uses custom module
+        return f"{name} = custom, {host}, {port}, {node.EncryptMethod}, {password}, https://raw.githubusercontent.com/ConnersHua/SSRouter/master/SSR.module"
+
     elif node.Type == ProxyType.Trojan:
-        opts = f"sni={node.ServerName or node.Hostname}"
-        if node.Path:
-            opts += f", ws-path={node.Path}"
-        if node.Host:
-            opts += f", ws-headers=Host:{node.Host}"
-        return f"{name} = trojan, {node.Hostname}, {node.Port}, password={node.Password}, {opts}"
-    elif node.Type == ProxyType.HTTP:
-        if node.Username and node.Password:
-            return f"{name} = http, {node.Hostname}, {node.Port}, username={node.Username}, password={node.Password}"
-        return f"{name} = http, {node.Hostname}, {node.Port}"
+        sni = node.ServerName or node.Host or host
+        proxy = f"{name} = trojan, {host}, {port}, password={password}"
+        if sni:
+            proxy += f", sni={sni}"
+        if node.TransferProtocol == 'ws':
+            proxy += f", ws=true, ws-path={node.Path or '/'}"
+            if node.Host:
+                proxy += f", ws-headers=Host:{node.Host}"
+        if node.AllowInsecure is not None:
+            proxy += f", skip-cert-verify={str(node.AllowInsecure).lower()}"
+        return proxy
+
     elif node.Type == ProxyType.SOCKS5:
-        if node.Username and node.Password:
-            return f"{name} = socks5, {node.Hostname}, {node.Port}, username={node.Username}, password={node.Password}"
-        return f"{name} = socks5, {node.Hostname}, {node.Port}"
+        proxy = f"{name} = socks5, {host}, {port}"
+        if username:
+            proxy += f", username={username}"
+        if password:
+            proxy += f", password={password}"
+        return proxy
+
+    elif node.Type == ProxyType.HTTP:
+        proxy = f"{name} = http, {host}, {port}"
+        if username:
+            proxy += f", username={username}"
+        if password:
+            proxy += f", password={password}"
+        proxy += f", tls={'true' if node.TLSSecure else 'false'}"
+        return proxy
+
+    elif node.Type == ProxyType.HTTPS:
+        proxy = f"{name} = https, {host}, {port}, {username}, {password}"
+        if node.AllowInsecure is not None:
+            proxy += f", skip-cert-verify={str(node.AllowInsecure).lower()}"
+        return proxy
+
+    elif node.Type == ProxyType.Snell:
+        proxy = f"{name} = snell, {host}, {port}, psk={password}"
+        if node.OBFS:
+            proxy += f", obfs={node.OBFS}"
+            if node.Host:
+                proxy += f", obfs-host={node.Host}"
+        if node.SnellVersion:
+            proxy += f", version={node.SnellVersion}"
+        return proxy
+
+    elif node.Type == ProxyType.Hysteria2:
+        proxy = f"{name} = hysteria2, {host}, {port}, password={password}"
+        if node.DownMbps:
+            proxy += f", download-bandwidth={node.DownMbps}"
+        if node.ServerName:
+            proxy += f", sni={node.ServerName}"
+        if node.AllowInsecure is not None:
+            proxy += f", skip-cert-verify={str(node.AllowInsecure).lower()}"
+        if node.Fingerprint:
+            proxy += f", server-cert-fingerprint-sha256={node.Fingerprint}"
+        if node.Ports:
+            proxy += f", port-hopping={node.Ports}"
+        return proxy
+
     elif node.Type == ProxyType.AnyTLS:
-        opts = f"password={node.Password}"
-        if node.ServerName and node.ServerName != node.Hostname:
-            opts += f", sni={node.ServerName}"
-        return f"{name} = anytls, {node.Hostname}, {node.Port}, {opts}"
-    elif node.Type == ProxyType.Mieru:
-        opts = f"password={node.Password}"
-        if node.Username:
-            opts += f", username={node.Username}"
-        return f"{name} = mieru, {node.Hostname}, {node.Port}, {opts}"
+        sni = node.SNI or node.ServerName or ''
+        proxy = f"{name} = anytls, {host}, {port}, password={password}"
+        if sni:
+            proxy += f", sni={sni}"
+        if node.AllowInsecure is not None:
+            proxy += f", skip-cert-verify={str(node.AllowInsecure).lower()}"
+        if node.Fingerprint:
+            proxy += f", server-cert-fingerprint-sha256={node.Fingerprint}"
+        return proxy
+
+    elif node.Type == ProxyType.VLESS:
+        proxy = f"{name} = vless, {host}, {port}, username={node.UserId}"
+        if node.TransferProtocol == 'ws':
+            proxy += f", ws=true, ws-path={node.Path or '/'}"
+            if node.Host:
+                proxy += f", ws-headers=Host:{node.Host}"
+        if node.TLSStr:
+            proxy += f", tls=true"
+            if node.ServerName:
+                proxy += f", sni={node.ServerName}"
+        return proxy
+
+    elif node.Type == ProxyType.TUIC:
+        proxy = f"{name} = tuic, {host}, {port}, token={password}, username={node.UserId or node.UserId}"
+        if node.ServerName:
+            proxy += f", sni={node.ServerName}"
+        if node.Alpn:
+            proxy += f", alpn={node.Alpn}"
+        return proxy
+
+    elif node.Type == ProxyType.WireGuard:
+        from ..utils.string_util import random_str
+        section = node.Remark[:8] if node.Remark else 'wg'
+        proxy = f"{name} = wireguard, section-name={section}"
+        if node.TestUrl:
+            proxy += f", test-url={node.TestUrl}"
+        return proxy
 
     return None
 
