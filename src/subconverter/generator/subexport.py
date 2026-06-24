@@ -300,25 +300,67 @@ def _add_clash_proxy_groups(config: dict, nodes: List[Proxy],
                             settings: 'ExtraSettings'):
     """Add proxy groups to Clash config."""
     groups = list(extra_groups) if extra_groups else []
+    all_remark_names = [n.Remark for n in nodes if n.Remark]
 
     # Add default select group if not present
     if not any(g.Name == 'Proxy' or g.Name == '🚀 Proxy' for g in groups):
         default_group = ProxyGroupConfig(
             Name='Proxy',
             Type=ProxyGroupType.Select,
-            Proxies=[n.Remark for n in nodes if n.Remark]
+            Proxies=list(all_remark_names)
         )
         groups.insert(0, default_group)
 
     config['proxy-groups'] = []
-    config.pop('Proxy Group', None)  # Remove old uppercase key
+    config.pop('Proxy Group', None)
     for g in groups:
+        # Expand .* and regex matchers to actual proxy names
+        expanded_proxies = []
+        used_in_group = set()
+        for rule in g.Proxies:
+            if rule == '.*':
+                for r in all_remark_names:
+                    if r not in used_in_group:
+                        expanded_proxies.append(r)
+                        used_in_group.add(r)
+            elif rule.startswith('!!GROUP='):
+                target_group = rule[8:]
+                for node in nodes:
+                    if node.Group == target_group and node.Remark not in used_in_group:
+                        expanded_proxies.append(node.Remark)
+                        used_in_group.add(node.Remark)
+            elif rule == 'DIRECT' or rule == 'REJECT' or rule == 'REJECT-TINYGIF':
+                if rule not in used_in_group:
+                    expanded_proxies.append(rule)
+                    used_in_group.add(rule)
+            else:
+                # Try as regex pattern
+                import re
+                try:
+                    pattern = re.compile(rule)
+                    matched = False
+                    for node in nodes:
+                        if node.Remark and pattern.search(node.Remark):
+                            if node.Remark not in used_in_group:
+                                expanded_proxies.append(node.Remark)
+                                used_in_group.add(node.Remark)
+                                matched = True
+                    if not matched and rule not in used_in_group:
+                        expanded_proxies.append(rule)
+                        used_in_group.add(rule)
+                except re.error:
+                    if rule not in used_in_group:
+                        expanded_proxies.append(rule)
+                        used_in_group.add(rule)
+
+        if not expanded_proxies:
+            continue
+
         group = {
             'name': g.Name,
-            'type': str(g.Type)
+            'type': str(g.Type),
+            'proxies': expanded_proxies
         }
-        if g.Proxies:
-            group['proxies'] = g.Proxies
         if g.UsingProvider:
             group['use'] = g.UsingProvider
         if g.Url:
