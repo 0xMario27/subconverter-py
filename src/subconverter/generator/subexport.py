@@ -304,8 +304,8 @@ def _add_clash_proxy_groups(config: dict, nodes: List[Proxy],
     # Collect all known group names (for group reference detection)
     all_group_names = {g.Name for g in groups}
 
-    # Add default select group if not present
-    if not any(g.Name == 'Proxy' or g.Name == '🚀 Proxy' for g in groups):
+    # Only add default select group if NO custom groups were provided
+    if not groups:
         default_group = ProxyGroupConfig(
             Name='Proxy',
             Type=ProxyGroupType.Select,
