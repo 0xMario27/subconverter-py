@@ -149,8 +149,11 @@ def proxy_to_clash(nodes: List[Proxy], base_conf: str,
     if settings and settings.enable_rule_generator and ruleset_content:
         _render_clash_rules(config, ruleset_content, settings)
 
-    # Custom YAML dump with flow-style proxies
-    return _clash_yaml_dump(config)
+    # Use yaml.dump then post-process for flow style
+    output = yaml.dump(config, allow_unicode=True, default_flow_style=False,
+                       sort_keys=False, width=200)
+    output = _post_process_flow(output)
+    return output
 
 
 def _clash_proxy(node: Proxy, clash_r: bool = False) -> Optional[Dict]:
@@ -331,81 +334,73 @@ def _add_clash_proxy_groups(config: dict, nodes: List[Proxy],
         config['proxy-groups'].append(group)
 
 
-def _clash_yaml_dump(config: dict) -> str:
-    """Custom YAML dump with flow-style proxies and rule-providers."""
-    output_lines = []
+def _post_process_flow(yaml_str: str) -> str:
+    """Post-process YAML to convert proxies to flow style."""
+    import re
+    lines = yaml_str.split('\n')
+    result = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
 
-    def _dump_section(key, value, indent=0):
-        """Dump a key-value pair, proxies/proxy-groups as flow style."""
-        prefix = '  ' * indent
-        if key in ('proxies', 'proxy-groups') and isinstance(value, list):
-            output_lines.append(f'{prefix}{key}:')
-            for proxy in value:
-                # Convert to flow mapping: {name: "x", type: ss, ...}
+        if stripped == 'proxies:':
+            result.append(line)
+            i += 1
+            while i < len(lines):
+                if lines[i] == '':
+                    result.append(lines[i])
+                    i += 1
+                    continue
+                if not lines[i].startswith('- '):
+                    break
+                item_lines = [lines[i][2:]]
+                i += 1
+                while i < len(lines) and lines[i].startswith('  ') and not lines[i].startswith('- '):
+                    item_lines.append(lines[i][2:])
+                    i += 1
+                # Build flow mapping with proper quoting for special chars
                 parts = []
-                for k, v in proxy.items():
-                    if isinstance(v, bool):
-                        parts.append(f'{k}: {str(v).lower()}')
-                    elif isinstance(v, str):
-                        # Quote strings that contain special chars
-                        if any(c in v for c in ':,[]{}#&*!|>\'"%@` '):
-                            parts.append(f'{k}: "{v}"')
+                for il in item_lines:
+                    if ':' in il:
+                        key, val = il.split(':', 1)
+                        val = val.strip()
+                        # Quote values that contain YAML flow special chars
+                        if val and any(c in val for c in '[]{}:,"\'#&*!|>%@` '):
+                            # Escape backslashes and quotes inside the value
+                            escaped = val.replace('\\', '\\\\').replace('"', '\\"')
+                            parts.append(f'{key}: "{escaped}"')
                         else:
-                            parts.append(f'{k}: {v}')
-                    elif isinstance(v, int):
-                        parts.append(f'{k}: {v}')
-                    elif isinstance(v, dict):
-                        inner = ', '.join(f'{ik}: "{iv}"' if isinstance(iv, str) else f'{ik}: {iv}'
-                                        for ik, iv in v.items())
-                        parts.append(f'{k}: {{{inner}}}')
-                    elif isinstance(v, list):
-                        inner = ', '.join(f'"{iv}"' if isinstance(iv, str) else str(iv) for iv in v)
-                        parts.append(f'{k}: [{inner}]')
-                output_lines.append(f'{prefix}  - {{{', '.join(parts)}}}')
-        elif isinstance(value, list):
-            output_lines.append(f'{prefix}{key}:')
-            for item in value:
-                if isinstance(item, str):
-                    output_lines.append(f'{prefix}  - {item}')
-                elif isinstance(item, dict):
-                    first = True
-                    for ik, iv in item.items():
-                        if first:
-                            output_lines.append(f'{prefix}  - {ik}: {iv}')
-                            first = False
-                        else:
-                            output_lines.append(f'{prefix}    {ik}: {iv}')
-        elif isinstance(value, dict):
-            if key == 'rule-providers':
-                # Output rule-providers in flow mapping style
-                output_lines.append(f'{prefix}{key}:')
-                for pk, pv in value.items():
-                    parts = []
-                    for ik, iv in pv.items():
-                        if isinstance(iv, str):
-                            parts.append(f'{ik}: "{iv}"')
-                        else:
-                            parts.append(f'{ik}: {iv}')
-                    output_lines.append(f'{prefix}  {pk}: {{{', '.join(parts)}}}')
-            else:
-                output_lines.append(f'{prefix}{key}:')
-                for k, v in value.items():
-                    if isinstance(v, dict):
-                        output_lines.append(f'{prefix}  {k}:')
-                        for ik, iv in v.items():
-                            output_lines.append(f'{prefix}    {ik}: {iv}')
+                            parts.append(il)
                     else:
-                        output_lines.append(f'{prefix}  {k}: {v}')
-        elif value is None:
-            pass
-        else:
-            output_lines.append(f'{prefix}{key}: {value}')
+                        parts.append(il)
+                result.append('- {' + ', '.join(parts) + '}')
+            continue
 
-    # Dump all top-level keys
-    for key, value in config.items():
-        _dump_section(key, value)
+        if stripped == 'rule-providers:':
+            result.append(line)
+            i += 1
+            while i < len(lines) and lines[i].startswith('  ') and not lines[i].startswith('    '):
+                name = lines[i].strip()[:-1]
+                i += 1
+                props = []
+                while i < len(lines) and lines[i].startswith('    '):
+                    prop = lines[i].strip()
+                    # Quote values in flow style
+                    if ':' in prop:
+                        key, val = prop.split(':', 1)
+                        val = val.strip()
+                        if val and any(c in val for c in '[]{}:,"\'#&*!|>%@` '):
+                            escaped = val.replace('\\', '\\\\').replace('"', '\\"')
+                            prop = f'{key}: "{escaped}"'
+                    props.append(prop)
+                    i += 1
+                result.append(f'  {name}: {{{', '.join(props)}}}')
+            continue
 
-    return '\n'.join(output_lines) + '\n'
+        result.append(line)
+        i += 1
+    return '\n'.join(result)
 
 
 def _render_clash_rules(config: dict, ruleset_content: List[RulesetContent],
