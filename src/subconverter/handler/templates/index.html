@@ -153,8 +153,14 @@
                     <option value="mixed">混合 (Mixed)</option>
                 </select>
             </div>
+            <div>
+                <label>外部配置 / 规则模板 <span class="hint" style="font-weight:normal;">(可选，提供分流规则与策略组)</span></label>
+                <select id="config">
+                    <option value="">-- 不使用模板（仅节点） --</option>
+                </select>
+            </div>
             <div class="shrink" style="align-self: flex-end;">
-                <button id="convert" onclick="doConvert()">转换</button>
+                <button id="convert" onclick="doConvert()">⚡ 转换</button>
             </div>
         </div>
 
@@ -185,6 +191,24 @@
 <script>
 const VERSION = "{{ version }}";
 
+// Load available configs on page load
+async function loadConfigs() {
+    try {
+        const resp = await fetch('/api/configs');
+        const configs = await resp.json();
+        const sel = document.getElementById('config');
+        configs.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.path;
+            opt.textContent = c.display;
+            sel.appendChild(opt);
+        });
+    } catch (e) {
+        console.error('Failed to load configs:', e);
+    }
+}
+loadConfigs();
+
 function quickTarget(t) {
     document.getElementById('target').value = t;
     doConvert();
@@ -193,6 +217,7 @@ function quickTarget(t) {
 async function doConvert() {
     const url = document.getElementById('url').value.trim();
     const target = document.getElementById('target').value;
+    const config = document.getElementById('config').value;
     const errEl = document.getElementById('error');
     const loadEl = document.getElementById('loading');
     const cardEl = document.getElementById('result-card');
@@ -214,12 +239,24 @@ async function doConvert() {
 
     try {
         const encoded = encodeURIComponent(url);
-        const resp = await fetch(`/sub?target=${target}&url=${encoded}`);
+        let apiUrl = `/sub?target=${target}&url=${encoded}`;
+        if (config) {
+            apiUrl += `&config=${encodeURIComponent(config)}`;
+        }
+        const resp = await fetch(apiUrl);
         const text = await resp.text();
 
         if (resp.ok) {
             resultEl.value = text;
-            infoEl.textContent = `${target} · ${text.split('\n').length} 行 · ${(text.length / 1024).toFixed(1)} KB`;
+            const nodeCount = (text.match(/^\s*-\s*name:/gm) || []).length;
+            const ruleCount = (text.match(/^\s*-\s*(?:DOMAIN|IP-CIDR|MATCH|RULE-SET|GEOIP)/gm) || []).length;
+            let info = `${target}`;
+            if (config) info += ` + 模板`;
+            info += ` · ${text.split('\n').length} 行`;
+            if (nodeCount) info += ` · ${nodeCount} 节点`;
+            if (ruleCount) info += ` · ${ruleCount} 规则`;
+            info += ` · ${(text.length / 1024).toFixed(1)} KB`;
+            infoEl.textContent = info;
             cardEl.style.display = 'block';
         } else {
             errEl.textContent = text || '转换失败';

@@ -220,6 +220,31 @@ def create_app() -> Flask:
             return render_template_string(template, version=VERSION)
         return Response(f"subconverter-py v{VERSION} backend\n", mimetype='text/plain')
 
+    @app.route('/api/configs')
+    def api_configs():
+        """List available external config templates."""
+        import glob, json as json_lib
+        configs = []
+        # __file__ is src/subconverter/handler/interfaces.py
+        # Go up 3 levels (handler -> subconverter -> src -> project root)
+        pkg_dir = os.path.dirname(os.path.abspath(__file__))
+        for _ in range(3):
+            pkg_dir = os.path.dirname(pkg_dir)
+        config_dir = os.path.join(pkg_dir, 'base', 'config')
+        if os.path.isdir(config_dir):
+            for f in sorted(glob.glob(os.path.join(config_dir, '*.ini'))):
+                name = os.path.basename(f)
+                if name.startswith('example'):
+                    continue
+                display = name.replace('.ini', '').replace('ACL4SSR_', '').replace('_', ' ')
+                configs.append({
+                    'name': name,
+                    'display': display,
+                    'path': f
+                })
+        return Response(json_lib.dumps(configs, ensure_ascii=False),
+                       mimetype='application/json')
+
     @app.route('/sub', methods=['GET', 'HEAD'])
     def sub():
         return handle_sub(request)
@@ -425,8 +450,6 @@ def handle_sub(req) -> Response:
         write_log(0, "External configuration file provided. Loading...", LOG_LEVEL_INFO)
         if load_external_config(arg_external_config, ext_config) == 0:
             if not ext.nodelist:
-                from ..config.loader import check_external_base
-                # Check external bases
                 if ext_config.clash_rule_base:
                     l_clash_base = ext_config.clash_rule_base or l_clash_base
                 if ext_config.surge_rule_base:

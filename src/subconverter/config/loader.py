@@ -376,56 +376,153 @@ def _parse_external_yaml(data: dict, ext_config: ExternalConfig):
     ext_config.remove_old_emoji = data.get('remove_old_emoji')
 
 
+def _parse_custom_section(content: str, ext_config: ExternalConfig):
+    """Parse [custom] section line by line for ruleset= entries."""
+    in_custom = False
+    for line in content.split('\n'):
+        line = trim(line)
+        if not line or line.startswith(';') or line.startswith('#'):
+            continue
+        if line.startswith('[') and line.endswith(']'):
+            in_custom = (line[1:-1].lower() == 'custom')
+            continue
+        if not in_custom:
+            continue
+
+        if '=' in line:
+            key, _, value = line.partition('=')
+            key = trim(key).lower()
+            value = trim(value)
+
+            if key == 'ruleset':
+                # Parse comma-separated: group,url_or_inline
+                parts = value.split(',', 1)
+                if len(parts) >= 2:
+                    group = trim(parts[0])
+                    url = trim(parts[1])
+                    if url.startswith('[]'):
+                        # Inline rule: []GEOIP,CN or []FINAL
+                        # Store as inline: prefix so refresh_rulesets knows it's inline
+                        ext_config.surge_ruleset.append(RulesetConfig(
+                            Group=group,
+                            Url=f"inline:{url[2:]}",
+                            Interval=86400
+                        ))
+                    else:
+                        ext_config.surge_ruleset.append(RulesetConfig(
+                            Group=group,
+                            Url=url,
+                            Interval=86400
+                        ))
+
+
+def _parse_proxy_groups_ini(content: str, ext_config: ExternalConfig):
+    """Parse custom_proxy_group= lines from [custom] section.
+    Format: custom_proxy_group=<name>`<type>[`<rule>...]
+    For url-test/fallback, additional args: `url`interval,timeout,tolerance
+    """
+    in_custom = False
+    for line in content.split('\n'):
+        line = trim(line)
+        if not line or line.startswith(';') or line.startswith('#'):
+            continue
+        if line.startswith('[') and line.endswith(']'):
+            in_custom = (line[1:-1].lower() == 'custom')
+            continue
+        if not in_custom:
+            continue
+
+        if '=' in line:
+            key, _, value = line.partition('=')
+            key = trim(key).lower()
+            value = trim(value)
+
+            if key == 'custom_proxy_group':
+                v_array = value.split('`')
+                if len(v_array) < 3:
+                    continue
+
+                name = v_array[0]
+                gtype_str = v_array[1].lower()
+
+                gtype_map = {
+                    'select': ProxyGroupType.Select,
+                    'url-test': ProxyGroupType.URLTest,
+                    'fallback': ProxyGroupType.Fallback,
+                    'load-balance': ProxyGroupType.LoadBalance,
+                    'relay': ProxyGroupType.Relay,
+                    'ssid': ProxyGroupType.SSID,
+                    'smart': ProxyGroupType.Smart,
+                }
+                gtype = gtype_map.get(gtype_str, ProxyGroupType.Select)
+
+                group = ProxyGroupConfig(Name=name, Type=gtype)
+
+                rules_upper_bound = len(v_array)
+
+                if gtype in (ProxyGroupType.URLTest, ProxyGroupType.LoadBalance,
+                             ProxyGroupType.Fallback):
+                    if rules_upper_bound >= 5:
+                        rules_upper_bound -= 2
+                        group.Url = v_array[rules_upper_bound]
+                        times = v_array[rules_upper_bound + 1].split(',')
+                        if len(times) >= 1:
+                            group.Interval = to_int(times[0], 300)
+                        if len(times) >= 2:
+                            group.Timeout = to_int(times[1], 5)
+                        if len(times) >= 3:
+                            group.Tolerance = to_int(times[2], 0)
+
+                for i in range(2, rules_upper_bound):
+                    rule = v_array[i]
+                    if rule.startswith('[]'):
+                        rule = rule[2:]  # Remove [] prefix
+                    if starts_with(rule, '!!PROVIDER='):
+                        group.UsingProvider.append(rule[11:])
+                    else:
+                        group.Proxies.append(rule)
+
+                ext_config.custom_proxy_group.append(group)
+
+
 def _parse_external_ini(content: str, ext_config: ExternalConfig):
-    """Parse external config in INI format."""
+    """Parse external config in INI format with subconverter's custom binding format."""
     sections = _parse_ini_sections(content)
 
-    # [custom] section - proxy groups
-    custom_lines = sections.get('custom', {})
-    group_pattern = re.compile(r'^(.+?),(select|url-test|fallback|load-balance|relay|ssid|smart),(.*)')
-    for key, val in custom_lines.items():
-        m = group_pattern.match(f"{key},{val}")
-        if not m:
-            continue
-        name = m.group(1)
-        gtype_str = m.group(2)
-        rest = m.group(3)
+    # [custom] section - the main configuration
+    custom = sections.get('custom', {})
 
-        gtype_map = {
-            'select': ProxyGroupType.Select,
-            'url-test': ProxyGroupType.URLTest,
-            'fallback': ProxyGroupType.Fallback,
-            'load-balance': ProxyGroupType.LoadBalance,
-            'relay': ProxyGroupType.Relay,
-            'ssid': ProxyGroupType.SSID,
-            'smart': ProxyGroupType.Smart,
-        }
+    # Parse ruleset= lines
+    # Format: ruleset=<group>,<url_or_inline>
+    # Inline rules prefixed with [], e.g. []GEOIP,CN or []FINAL
+    ruleset_lines = custom.get('ruleset', '')
+    if isinstance(ruleset_lines, str):
+        # Multiple ruleset= lines are combined by _parse_ini_sections
+        # We need to handle multi-line differently
+        pass
 
-        proxies = [trim(p) for p in rest.split(',') if trim(p)]
-        ext_config.custom_proxy_group.append(ProxyGroupConfig(
-            Name=name,
-            Type=gtype_map.get(gtype_str, ProxyGroupType.Select),
-            Proxies=proxies
-        ))
+    # Actually, _parse_ini_sections only takes the LAST value for duplicate keys.
+    # We need to parse line-by-line for multiple ruleset= entries.
+    # Let's re-parse the raw [custom] section
+    _parse_custom_section(content, ext_config)
 
-    # [rule] section - external ruleset URLs
-    rule_lines = sections.get('rule', {})
-    for key, val in rule_lines.items():
-        if val and is_link(val):
-            ext_config.surge_ruleset.append(RulesetConfig(
-                Group=key,
-                Url=val
-            ))
+    # Parse custom_proxy_group= lines  
+    # Format: custom_proxy_group=<name>`<type>`<rule1>`<rule2>...
+    _parse_proxy_groups_ini(content, ext_config)
 
     # [server] section
     server = sections.get('server', {})
-    ext_config.clash_rule_base = server.get('clash', '')
-    ext_config.surge_rule_base = server.get('surge', '')
+    ext_config.clash_rule_base = server.get('clash_rule_base', '')
+    ext_config.surge_rule_base = server.get('surge_rule_base', '')
 
     # [rename] section
-    rename_lines = sections.get('rename', {})
-    for match, replace in rename_lines.items():
+    renames = sections.get('rename', {})
+    for match, replace in renames.items():
         ext_config.rename.append(RegexMatchConfig(Match=match, Replace=replace))
+
+    # Common flags in [custom]
+    ext_config.enable_rule_generator = custom.get('enable_rule_generator', 'true').lower() != 'false'
+    ext_config.overwrite_original_rules = custom.get('overwrite_original_rules', 'true').lower() != 'false'
 
 
 # ==================== Ruleset Refresh ====================
@@ -453,6 +550,14 @@ def refresh_rulesets(ruleset_list: List[RulesetConfig],
             content = web_get(url, proxy, rc.Interval or global_settings.cache_ruleset)
         elif file_exist(url):
             content = file_get(url)
+        elif file_exist('base/' + url):
+            # Try with base/ prefix (configs are relative to base/)
+            content = file_get('base/' + url)
+        elif url.startswith('inline:'):
+            # Inline rule: the URL is the rule content
+            content = url[7:]
+        else:
+            write_log(0, f"Ruleset file not found: {url}", LOG_LEVEL_WARNING)
 
         ruleset_content.append(RulesetContent(
             rule_content=content,

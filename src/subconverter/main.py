@@ -38,10 +38,13 @@ def main():
 
     args = parser.parse_args()
 
-    # Set up CD (change directory) to script location
+    # Set up CD to project root (where base/ is)
     try:
-        exe_path = os.path.realpath(sys.argv[0])
-        os.chdir(os.path.dirname(exe_path))
+        pkg_dir = os.path.dirname(os.path.abspath(__file__))
+        # __file__ = src/subconverter/main.py
+        # Go up 2 levels: subconverter -> src -> project root
+        project_root = os.path.dirname(os.path.dirname(pkg_dir))
+        os.chdir(project_root)
     except Exception:
         pass
 
