@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://python.org)
 [![Docker](https://img.shields.io/badge/docker-ready-blue)](https://docker.com)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 **subconverter-py** — Utility to convert between various proxy subscription formats. Pure Python rewrite with zero external runtime dependencies.
 

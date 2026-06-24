@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://python.org)
 [![Docker](https://img.shields.io/badge/docker-ready-blue)](https://docker.com)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 **subconverter-py** — 在各种代理订阅格式之间进行转换的实用工具。纯 Python 重写，零外部运行时依赖。
 
