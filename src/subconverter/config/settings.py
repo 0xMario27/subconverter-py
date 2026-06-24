@@ -209,16 +209,16 @@ class Settings:
     filter_script: str = ""
     
     # Base config paths
-    clash_base: str = ""
+    clash_base: str = "base/base/GeneralClashConfig.yml"
     custom_proxy_groups: List[ProxyGroupConfig] = field(default_factory=list)
-    surge_base: str = ""
-    surfboard_base: str = ""
-    mellow_base: str = ""
-    quan_base: str = ""
-    quan_x_base: str = ""
-    loon_base: str = ""
-    ss_sub_base: str = ""
-    sing_box_base: str = ""
+    surge_base: str = "base/base/surge.conf"
+    surfboard_base: str = "base/base/surfboard.conf"
+    mellow_base: str = "base/base/mellow.conf"
+    quan_base: str = "base/base/quan.conf"
+    quan_x_base: str = "base/base/quanx.conf"
+    loon_base: str = "base/base/loon.conf"
+    ss_sub_base: str = "base/base/shadowsocks_base.json"
+    sing_box_base: str = "base/base/singbox.json"
     
     surge_ssr_path: str = ""
     quan_x_dev_id: str = ""

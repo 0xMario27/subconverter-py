@@ -182,7 +182,10 @@
     <div class="card" id="result-card" style="display:none;">
         <div class="result-header">
             <span id="result-info"></span>
-            <button class="copy-btn" onclick="copyResult()">📋 复制</button>
+            <div>
+                <button class="copy-btn" onclick="downloadResult()">💾 下载</button>
+                <button class="copy-btn" onclick="copyResult()" style="margin-left:6px;">📋 复制</button>
+            </div>
         </div>
         <textarea id="result" readonly placeholder="转换结果将显示在这里..."></textarea>
     </div>
@@ -275,9 +278,30 @@ function copyResult() {
     const ta = document.getElementById('result');
     ta.select();
     document.execCommand('copy');
-    const btn = document.querySelector('.copy-btn');
+    const btn = document.querySelectorAll('.copy-btn')[1];
     btn.textContent = '✅ 已复制';
     setTimeout(() => btn.textContent = '📋 复制', 1500);
+}
+
+function downloadResult() {
+    const text = document.getElementById('result').value;
+    const target = document.getElementById('target').value;
+    const ext = {
+        'clash': 'yaml', 'clashr': 'yaml', 'surge': 'conf', 'surfboard': 'conf',
+        'quanx': 'conf', 'quan': 'conf', 'loon': 'conf', 'singbox': 'json',
+        'ss': 'txt', 'ssr': 'txt', 'sssub': 'txt', 'v2ray': 'txt',
+        'trojan': 'txt', 'mixed': 'txt'
+    }[target] || 'txt';
+    const filename = `subconverter.${target}.${Date.now()}.${ext}`;
+    const blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '✅ 已下载';
+    setTimeout(() => btn.textContent = '💾 下载', 1500);
 }
 
 // Enter key to convert
