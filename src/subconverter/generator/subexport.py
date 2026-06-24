@@ -430,17 +430,30 @@ def proxy_to_surge(nodes: List[Proxy], base_conf: str,
             content = rc.rule_content or ""
             if not content:
                 continue
+
+            # Check if this ruleset came from a remote URL → use RULE-SET format
+            rule_path = rc.rule_path or ""
+            if rule_path.startswith('http://') or rule_path.startswith('https://'):
+                interval = rc.update_interval or 86400
+                result.append(f'RULE-SET,{rule_path},"{rc.rule_group}",update-interval={interval}')
+                continue
+
+            # Check if it's an inline rule (GEOIP, FINAL, etc.)
+            if rule_path.startswith('inline:') or content.startswith('GEOIP') or content.startswith('FINAL'):
+                rule_text = content
+                if rule_text == 'FINAL':
+                    rule_text = 'MATCH'
+                result.append(f"{rule_text},{rc.rule_group}")
+                continue
+
+            # Local ruleset → expand inline
             converted = convert_ruleset(content, rc.rule_type or RULESET_SURGE)
             for line in converted.strip().split('\n'):
                 line = trim(line)
                 if not line or line[0] in (';', '#') or line.startswith('//'):
                     continue
-                # Surge format: type,content[,no-resolve],policy
-                # The ruleset lines are: type,content[,no-resolve]
-                # We need to add the group as the policy BEFORE no-resolve
                 parts = line.split(',')
                 if len(parts) >= 2 and trim(parts[-1]).lower() == 'no-resolve':
-                    # type,content,no-resolve -> type,content,group,no-resolve
                     core = ','.join(parts[:-1])
                     result.append(f"{core},{rc.rule_group},no-resolve")
                 else:
