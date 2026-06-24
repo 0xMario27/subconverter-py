@@ -89,11 +89,9 @@ def web_get(url: str, proxy: str = "", cache_ttl: int = 0,
             write_log(0, f"CACHE NOT EXIST: '{url}', creating new cache.")
 
         content = _curl_get(url, proxy, response_headers, request_headers)
-        if response_headers and 'status_code' in response_headers and response_headers['status_code'] == 200:
+        if content:
             file_write(cache_path, content, True)
-            if response_headers:
-                import json
-                file_write(header_path, json.dumps(dict(response_headers.get('headers', {}))), True)
+            write_log(0, f"CACHE SAVED: '{url[:60]}...'", LOG_LEVEL_VERBOSE)
         elif file_exist(cache_path):
             gs = _global_settings
             if gs and gs.serve_cache_on_fetch_fail:
