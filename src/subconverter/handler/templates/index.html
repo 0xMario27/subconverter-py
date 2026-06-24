@@ -98,23 +98,6 @@
         .error { color: #e94560; font-size: 13px; margin-top: 8px; }
         .loading { color: #f0c040; font-size: 13px; margin-top: 8px; }
 
-        .preset-btns {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 12px;
-        }
-        .preset-btn {
-            padding: 5px 12px;
-            background: #0f3460;
-            border: 1px solid #1a5080;
-            border-radius: 4px;
-            color: #c0c0d0;
-            font-size: 12px;
-            cursor: pointer;
-        }
-        .preset-btn:hover { background: #1a5080; color: #fff; }
-
         @media (max-width: 500px) {
             .row { flex-direction: column; }
             .row > .shrink { width: 100%; }
@@ -163,17 +146,6 @@
                 <button id="convert" onclick="doConvert()">⚡ 转换</button>
             </div>
         </div>
-
-        <div class="preset-btns" style="margin-top: 12px;">
-            <span style="font-size:11px;color:#888;line-height:28px;margin-right:4px;">快捷目标:</span>
-            <button class="preset-btn" onclick="quickTarget('clash')">Clash</button>
-            <button class="preset-btn" onclick="quickTarget('surge')">Surge</button>
-            <button class="preset-btn" onclick="quickTarget('quanx')">QX</button>
-            <button class="preset-btn" onclick="quickTarget('loon')">Loon</button>
-            <button class="preset-btn" onclick="quickTarget('singbox')">sing-box</button>
-            <button class="preset-btn" onclick="quickTarget('v2ray')">V2Ray</button>
-            <button class="preset-btn" onclick="quickTarget('mixed')">Mixed</button>
-        </div>
     </div>
 
     <div id="error" class="error" style="display:none;"></div>
@@ -211,11 +183,6 @@ async function loadConfigs() {
     }
 }
 loadConfigs();
-
-function quickTarget(t) {
-    document.getElementById('target').value = t;
-    doConvert();
-}
 
 async function doConvert() {
     const url = document.getElementById('url').value.trim();
