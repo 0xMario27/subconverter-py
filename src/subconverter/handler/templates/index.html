@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>subconverter-py</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 40px 16px;
+        }
+        .container { width: 100%; max-width: 720px; }
+        h1 { font-size: 22px; margin-bottom: 8px; color: #fff; }
+        .version { font-size: 12px; color: #888; margin-bottom: 24px; }
+
+        .card {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .card label {
+            display: block;
+            font-size: 13px;
+            color: #a0a0b0;
+            margin-bottom: 6px;
+        }
+
+        .row { display: flex; gap: 10px; align-items: flex-end; }
+        .row > * { flex: 1; }
+        .row > .shrink { flex: 0 0 auto; }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            background: #0f0f23;
+            color: #e0e0e0;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color .2s;
+        }
+        input:focus, select:focus, textarea:focus { border-color: #e94560; }
+
+        textarea {
+            min-height: 200px;
+            resize: vertical;
+            font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre;
+        }
+
+        button {
+            padding: 10px 24px;
+            background: #e94560;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background .2s;
+        }
+        button:hover { background: #c73652; }
+        button:disabled { background: #555; cursor: not-allowed; }
+
+        .hint {
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .result-header span { font-size: 14px; color: #a0a0b0; }
+
+        .copy-btn {
+            font-size: 12px;
+            padding: 4px 12px;
+            background: #0f3460;
+        }
+        .copy-btn:hover { background: #1a5080; }
+
+        .error { color: #e94560; font-size: 13px; margin-top: 8px; }
+        .loading { color: #f0c040; font-size: 13px; margin-top: 8px; }
+
+        .preset-btns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .preset-btn {
+            padding: 5px 12px;
+            background: #0f3460;
+            border: 1px solid #1a5080;
+            border-radius: 4px;
+            color: #c0c0d0;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .preset-btn:hover { background: #1a5080; color: #fff; }
+
+        @media (max-width: 500px) {
+            .row { flex-direction: column; }
+            .row > .shrink { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>⚡ subconverter-py</h1>
+    <div class="version">v{{ version }} — 订阅格式转换工具</div>
+
+    <div class="card">
+        <label>订阅链接（支持多个，用 | 分隔）</label>
+        <input id="url" type="text" placeholder="https://your-subscription.com/xxx 或 ss://... 或 vmess://...">
+        <div class="hint">直接用原始链接即可，会自动 URL 编码。支持 ss:// ssr:// vmess:// trojan:// vless:// hysteria:// 等</div>
+    </div>
+
+    <div class="card">
+        <div class="row">
+            <div>
+                <label>目标格式</label>
+                <select id="target">
+                    <option value="clash">Clash</option>
+                    <option value="clashr">ClashR</option>
+                    <option value="surge">Surge</option>
+                    <option value="surfboard">Surfboard</option>
+                    <option value="quanx">Quantumult X</option>
+                    <option value="quan">Quantumult</option>
+                    <option value="loon">Loon</option>
+                    <option value="singbox">sing-box</option>
+                    <option value="ss">SS (SIP002)</option>
+                    <option value="ssr">SSR</option>
+                    <option value="sssub">SS Android</option>
+                    <option value="v2ray">V2Ray / VMess</option>
+                    <option value="trojan">Trojan</option>
+                    <option value="mixed">混合 (Mixed)</option>
+                </select>
+            </div>
+            <div class="shrink" style="align-self: flex-end;">
+                <button id="convert" onclick="doConvert()">转换</button>
+            </div>
+        </div>
+
+        <div class="preset-btns" style="margin-top: 12px;">
+            <span style="font-size:11px;color:#888;line-height:28px;margin-right:4px;">快捷目标:</span>
+            <button class="preset-btn" onclick="quickTarget('clash')">Clash</button>
+            <button class="preset-btn" onclick="quickTarget('surge')">Surge</button>
+            <button class="preset-btn" onclick="quickTarget('quanx')">QX</button>
+            <button class="preset-btn" onclick="quickTarget('loon')">Loon</button>
+            <button class="preset-btn" onclick="quickTarget('singbox')">sing-box</button>
+            <button class="preset-btn" onclick="quickTarget('v2ray')">V2Ray</button>
+            <button class="preset-btn" onclick="quickTarget('mixed')">Mixed</button>
+        </div>
+    </div>
+
+    <div id="error" class="error" style="display:none;"></div>
+    <div id="loading" class="loading" style="display:none;">⏳ 正在获取并转换...</div>
+
+    <div class="card" id="result-card" style="display:none;">
+        <div class="result-header">
+            <span id="result-info"></span>
+            <button class="copy-btn" onclick="copyResult()">📋 复制</button>
+        </div>
+        <textarea id="result" readonly placeholder="转换结果将显示在这里..."></textarea>
+    </div>
+</div>
+
+<script>
+const VERSION = "{{ version }}";
+
+function quickTarget(t) {
+    document.getElementById('target').value = t;
+    doConvert();
+}
+
+async function doConvert() {
+    const url = document.getElementById('url').value.trim();
+    const target = document.getElementById('target').value;
+    const errEl = document.getElementById('error');
+    const loadEl = document.getElementById('loading');
+    const cardEl = document.getElementById('result-card');
+    const resultEl = document.getElementById('result');
+    const infoEl = document.getElementById('result-info');
+    const btn = document.getElementById('convert');
+
+    errEl.style.display = 'none';
+    if (!url) {
+        errEl.textContent = '请输入订阅链接';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    loadEl.style.display = 'block';
+    cardEl.style.display = 'none';
+    resultEl.value = '';
+
+    try {
+        const encoded = encodeURIComponent(url);
+        const resp = await fetch(`/sub?target=${target}&url=${encoded}`);
+        const text = await resp.text();
+
+        if (resp.ok) {
+            resultEl.value = text;
+            infoEl.textContent = `${target} · ${text.split('\n').length} 行 · ${(text.length / 1024).toFixed(1)} KB`;
+            cardEl.style.display = 'block';
+        } else {
+            errEl.textContent = text || '转换失败';
+            errEl.style.display = 'block';
+        }
+    } catch (e) {
+        errEl.textContent = '网络错误: ' + e.message;
+        errEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        loadEl.style.display = 'none';
+    }
+}
+
+function copyResult() {
+    const ta = document.getElementById('result');
+    ta.select();
+    document.execCommand('copy');
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '✅ 已复制';
+    setTimeout(() => btn.textContent = '📋 复制', 1500);
+}
+
+// Enter key to convert
+document.getElementById('url').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doConvert();
+});
+
+// Auto-convert if URL is in query string
+const params = new URLSearchParams(window.location.search);
+const qUrl = params.get('url');
+const qTarget = params.get('target');
+if (qUrl) {
+    document.getElementById('url').value = decodeURIComponent(qUrl);
+    if (qTarget) document.getElementById('target').value = qTarget;
+    doConvert();
+}
+</script>
+</body>
+</html>

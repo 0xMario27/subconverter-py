@@ -20,7 +20,7 @@ import urllib.parse
 from typing import Dict, Optional, List
 from copy import deepcopy
 
-from flask import Flask, request, Response
+from flask import Flask, request, Response, render_template_string
 
 from ..config.models import Proxy, ProxyType
 from ..config.settings import (
@@ -210,6 +210,15 @@ def create_app() -> Flask:
     def version():
         return Response(f"subconverter-py v{VERSION} backend\n",
                        mimetype='text/plain')
+
+    @app.route('/')
+    def index():
+        html_path = os.path.join(os.path.dirname(__file__), 'templates', 'index.html')
+        if os.path.isfile(html_path):
+            with open(html_path, 'r', encoding='utf-8') as f:
+                template = f.read()
+            return render_template_string(template, version=VERSION)
+        return Response(f"subconverter-py v{VERSION} backend\n", mimetype='text/plain')
 
     @app.route('/sub', methods=['GET', 'HEAD'])
     def sub():
