@@ -247,7 +247,8 @@ def _post_process_flow(yaml_str: str) -> str:
                             escaped = val.replace('\\', '\\\\').replace('"', '\\"')
                             prop = f'{key}: "{escaped}"'
                     props.append(prop); i += 1
-                result.append(f'  {name}: {{{', '.join(props)}}}')
+                sep = ", ".join(props)
+                result.append(f'  {name}: {{{sep}}}')
             continue
 
         result.append(line); i += 1

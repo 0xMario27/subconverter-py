@@ -1,290 +1,482 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>subconverter-py</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #1a1a2e;
-            color: #e0e0e0;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            padding: 40px 16px;
-        }
-        .container { width: 100%; max-width: 720px; }
-        h1 { font-size: 22px; margin-bottom: 8px; color: #fff; }
-        .version { font-size: 12px; color: #888; margin-bottom: 24px; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SUBCONVERTER · 订阅转换局</title>
+<style>
+:root {
+  --paper: #f5f0e8; --ink: #1a1a1a; --cream: #fefdf8; --warm-light: #faf8f3;
+  --gold: #d4c5a0; --gold-bright: #c4a050; --red: #8b0000; --green: #1a5c1a;
+  --rule: #999; --rule-light: #aaa; --rule-lighter: #ccc; --rule-warm: #e0ddd5;
+  --text-muted: #555; --text-dim: #666; --text-faint: #888;
+  --font-headline: "Times New Roman", serif;
+  --font-body: Georgia, "Times New Roman", serif;
+  --font-label: "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Courier New", monospace;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; font-family: var(--font-body); color: var(--ink); background: #e8e0d0; -webkit-font-smoothing: antialiased; }
+.paper { width: 100%; min-height: 100vh; background: var(--paper); padding: 16px; position: relative;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5 Q40 0 55 5 T60 30 T55 55 T30 60 T5 55 T0 30 T5 5 Z' fill='none' stroke='%23e0ddd5' stroke-width='0.3'/%3E%3C/svg%3E");
+  background-size: 120px 120px; }
+.paper-inner { max-width: 1060px; margin: 0 auto; position: relative; z-index: 1; }
+@media (min-width: 900px) { .paper { padding: 28px 36px; } }
+.magic-particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
 
-        .card {
-            background: #16213e;
-            border: 1px solid #0f3460;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 16px;
-        }
-        .card label {
-            display: block;
-            font-size: 13px;
-            color: #a0a0b0;
-            margin-bottom: 6px;
-        }
+/* ===== MASTHEAD ===== */
+.masthead { text-align: center; margin-bottom: 14px; }
+.masthead-top { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; font-family: var(--font-label); margin-bottom: 4px; padding: 0 4px; }
+.masthead-rule { height: 1px; background: var(--ink); margin: 4px 0; }
+.masthead-rule-thick { height: 2px; }
+.name { font-family: var(--font-headline); font-weight: 900; font-size: 56px; letter-spacing: 4px; margin: 0; color: var(--ink); text-transform: uppercase; animation: inkSpread 3s ease-out, shimmer 4s ease-in-out 3s infinite; }
+@media (max-width: 700px) { .name { font-size: 28px; letter-spacing: 1px; } }
+@keyframes inkSpread { from { letter-spacing: 15px; opacity: 0; } to { letter-spacing: 4px; opacity: 1; } }
+@keyframes shimmer { 0%,100% { text-shadow: 0 0 0 transparent; } 50% { text-shadow: 0 0 12px rgba(180,150,60,.35); } }
+.motto { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2.5px; font-family: var(--font-label); margin: 3px 0 8px; font-style: italic; }
+.ticker { background: var(--ink); color: var(--gold); overflow: hidden; font-family: var(--font-mono); position: relative; height: 22px; line-height: 22px; margin: 8px 0; }
+.ticker-label { background: var(--red); color: #fff; padding: 0 10px; font-weight: bold; font-size: 9px; white-space: nowrap; position: absolute; left: 0; top: 0; bottom: 0; z-index: 2; font-family: var(--font-label); }
+.ticker-text { animation: tickerScroll 30s linear infinite; white-space: nowrap; padding-left: 100px; font-size: 11px; }
+@keyframes tickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
-        .row { display: flex; gap: 10px; align-items: flex-end; }
-        .row > * { flex: 1; }
-        .row > .shrink { flex: 0 0 auto; }
+/* ===== COLUMNS ===== */
+.columns { display: flex; gap: 18px; margin-bottom: 16px; }
+.columns-2 .col { flex: 1; }
+.columns-3 .col { flex: 1; }
+.col-span-2 { flex: 2 !important; }
+@media (max-width: 700px) { .columns { flex-direction: column; gap: 10px; } }
 
-        input, select, textarea {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #0f3460;
-            border-radius: 6px;
-            background: #0f0f23;
-            color: #e0e0e0;
-            font-size: 14px;
-            font-family: inherit;
-            outline: none;
-            transition: border-color .2s;
-        }
-        input:focus, select:focus, textarea:focus { border-color: #e94560; }
+/* ===== RULES ===== */
+.rule { height: 1px; background: var(--rule-light); margin: 10px 0; border: none; }
+.rule-thick { height: 2px; background: var(--ink); margin: 14px 0; }
 
-        textarea {
-            min-height: 200px;
-            resize: vertical;
-            font-family: "SF Mono", "Fira Code", "Consolas", monospace;
-            font-size: 12px;
-            line-height: 1.5;
-            white-space: pre;
-        }
+/* ===== HEADLINES ===== */
+.headline { font-family: var(--font-headline); font-weight: 900; font-size: 22px; margin: 0 0 8px; line-height: 1.15; }
+.headline-sm { font-family: var(--font-headline); font-weight: 900; font-size: 17px; margin: 0 0 6px; line-height: 1.2; }
+.subhead { font-family: var(--font-headline); font-weight: 900; font-size: 14px; margin: 8px 0 4px; }
+.byline { font-size: 9px; color: var(--text-muted); font-family: var(--font-label); letter-spacing: .5px; margin-bottom: 8px; }
+.overline { font-size: 8px; color: var(--red); text-transform: uppercase; letter-spacing: 3px; font-family: var(--font-label); font-weight: 900; margin-bottom: 2px; }
 
-        button {
-            padding: 10px 24px;
-            background: #e94560;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background .2s;
-        }
-        button:hover { background: #c73652; }
-        button:disabled { background: #555; cursor: not-allowed; }
+/* ===== BODY TEXT ===== */
+p { font-size: 12px; line-height: 1.6; margin: 0 0 8px; }
 
-        .hint {
-            font-size: 11px;
-            color: #888;
-            margin-top: 4px;
-        }
+/* ===== SERVICE BOX ===== */
+.service-box { border: 3px double var(--ink); padding: 16px 20px; margin: 12px 0; background: var(--cream); box-shadow: 0 1px 4px rgba(0,0,0,.08); animation: border-pulse 3s ease-in-out infinite; }
+@keyframes border-pulse { 0%,100% { border-color: var(--ink); } 50% { border-color: var(--text-faint); } }
+.service-intro { font-size: 11px; color: var(--text-dim); margin-bottom: 12px; font-style: italic; text-align: center; }
 
-        .result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-        .result-header span { font-size: 14px; color: #a0a0b0; }
+/* ===== FORM ===== */
+label { display: block; font-size: 9px; font-weight: 900; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; font-family: var(--font-label); margin-bottom: 3px; }
+input, select, textarea { width: 100%; padding: 8px 10px; border-radius: 0; border: 1px solid var(--rule); background: #fff; font-family: var(--font-mono); font-size: 12px; color: var(--ink); outline: none; transition: border-color .15s; }
+input:focus, select:focus, textarea:focus { border-color: var(--ink); box-shadow: none; }
+input::placeholder, textarea::placeholder { color: var(--rule); }
+select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23555' d='M5 7L1 3h8z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 26px; }
+.form-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 10px; }
+.form-row .grow { flex: 1; }
+.form-row .fixed { flex: 0 0 auto; }
+@media (max-width: 640px) { .form-row { flex-direction: column; } .form-row .fixed { width: 100%; } }
 
-        .copy-btn {
-            font-size: 12px;
-            padding: 4px 12px;
-            background: #0f3460;
-        }
-        .copy-btn:hover { background: #1a5080; }
+.btn-generate { width: 100%; height: 40px; font-size: 14px; font-weight: 900; letter-spacing: 4px; background: var(--ink); border: none; color: var(--paper); border-radius: 0; text-transform: uppercase; font-family: var(--font-headline); cursor: pointer; margin-top: 10px; }
+.btn-generate::before { content: '➤ '; animation: arrow-bounce .8s ease-in-out infinite; display: inline-block; }
+.btn-generate:hover { background: #333; }
+.btn-generate:disabled { background: var(--rule-lighter); color: var(--rule); cursor: not-allowed; }
+.btn-generate:disabled::before { animation: none; }
+@keyframes arrow-bounce { 0%,100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
 
-        .error { color: #e94560; font-size: 13px; margin-top: 8px; }
-        .loading { color: #f0c040; font-size: 13px; margin-top: 8px; }
+textarea#result { min-height: 320px; resize: vertical; line-height: 1.5; white-space: pre; font-size: 11px; }
+.result-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.result-meta { font-size: 10px; color: var(--text-muted); font-family: var(--font-label); letter-spacing: .5px; display: flex; gap: 14px; flex-wrap: wrap; }
+.result-meta .num { color: var(--ink); font-weight: 900; font-family: var(--font-mono); }
 
-        @media (max-width: 500px) {
-            .row { flex-direction: column; }
-            .row > .shrink { width: 100%; }
-        }
-    </style>
+.btn-row { display: flex; gap: 6px; }
+.btn-ghost { padding: 5px 12px; font-size: 9px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; font-family: var(--font-label); background: transparent; border: 1px solid var(--rule); color: var(--text-muted); cursor: pointer; border-radius: 0; transition: .12s; }
+.btn-ghost:hover { border-color: var(--ink); color: var(--ink); background: var(--warm-light); }
+
+.status { font-size: 10px; padding: 8px 12px; margin: 8px 0; border: 1px solid var(--rule); font-family: var(--font-mono); display: none; }
+.status.error { display: block; color: var(--red); background: #fff5f5; border-color: var(--red); }
+.status.loading { display: block; color: var(--text-muted); background: var(--warm-light); }
+
+/* ===== FOOTER ===== */
+.footer { text-align: center; margin-top: 20px; }
+.footer-text { font-size: 8px; color: var(--text-faint); letter-spacing: 1.5px; text-transform: uppercase; font-family: var(--font-label); }
+
+/* ===== DROPCAP ===== */
+.dropcap { float: left; font-size: 44px; line-height: .8; margin: 0 5px 0 0; font-weight: 900; font-family: var(--font-headline); }
+.quote { margin: 10px 20px; padding: 8px 0; border-top: 1px solid var(--rule-light); border-bottom: 1px solid var(--rule-light); font-style: italic; font-size: 13px; text-align: center; color: #333; }
+.quote-attrib { font-size: 9px; font-style: normal; color: var(--text-dim); font-family: var(--font-label); }
+
+/* ===== BRIEF ===== */
+.brief { font-size: 10px; line-height: 1.45; margin-bottom: 7px; padding-bottom: 7px; border-bottom: 1px dotted var(--rule-lighter); }
+.brief strong { font-family: var(--font-headline); font-size: 11px; display: block; margin-bottom: 2px; }
+.brief:last-child { border-bottom: none; }
+
+/* ===== FORMAT TABLE ===== */
+.fmt-table { width: 100%; font-size: 10px; border-collapse: collapse; font-family: var(--font-mono); margin: 6px 0; }
+.fmt-table th { font-family: var(--font-label); font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); text-align: left; padding: 3px 6px; border-bottom: 2px solid var(--ink); }
+.fmt-table td { padding: 3px 6px; border-bottom: 1px solid var(--rule-warm); }
+.fmt-table .yes { color: var(--green); }
+.fmt-table .no { color: var(--rule-light); }
+
+/* ===== STAT COUNTER ===== */
+.stat-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.stat-chip { background: var(--warm-light); border: 1px solid var(--rule-warm); padding: 6px 10px; text-align: center; min-width: 60px; }
+.stat-chip .n { font-family: var(--font-headline); font-size: 20px; font-weight: 900; color: var(--ink); display: block; }
+.stat-chip .l { font-size: 7px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-faint); font-family: var(--font-label); margin-top: 2px; }
+
+/* ===== TELEGRAM NOTICE ===== */
+.telegram-notice { position: fixed; top: 16px; right: 16px; z-index: 999; background: var(--cream); border: 2px solid var(--ink); font-family: var(--font-mono); font-size: 11px; box-shadow: 2px 2px 0 rgba(0,0,0,.15); animation: noticeIn .25s ease-out; max-width: 340px; }
+.telegram-notice.error { border-color: var(--red); background: #fff5f5; }
+.telegram-notice.success { border-color: var(--green); background: #f5fff5; }
+@keyframes noticeIn { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.telegram-label { background: var(--ink); color: var(--paper); padding: 2px 8px; font-size: 8px; font-weight: 900; letter-spacing: 1px; font-family: var(--font-label); text-transform: uppercase; display: inline-block; }
+.telegram-msg { padding: 6px 10px; display: block; }
+.telegram-close { float: right; cursor: pointer; padding: 2px 8px; font-size: 14px; color: var(--text-muted); }
+
+/* ===== ADVERTISEMENT ===== */
+.ad-box { border: 1px solid var(--rule-light); padding: 8px 12px; text-align: center; background: #fffef9; margin: 10px 0; }
+.ad-box .ad-title { font-family: var(--font-headline); font-size: 12px; font-weight: 900; }
+.ad-box .ad-body { font-size: 9px; color: var(--text-dim); font-style: italic; }
+</style>
 </head>
 <body>
-<div class="container">
-    <h1>⚡ subconverter-py</h1>
-    <div class="version">v{{ version }} — 订阅格式转换工具</div>
 
-    <div class="card">
-        <label>订阅链接（支持多个，用 | 分隔）</label>
-        <input id="url" type="text" placeholder="https://your-subscription.com/xxx 或 ss://... 或 vmess://...">
-        <div class="hint">直接用原始链接即可，会自动 URL 编码。支持 ss:// ssr:// vmess:// trojan:// vless:// hysteria:// 等</div>
+<div class="paper">
+  <canvas class="magic-particles"></canvas>
+  <div class="paper-inner">
+
+    <!-- ===== MASTHEAD ===== -->
+    <div class="masthead">
+      <div class="masthead-top">
+        <span>Vol. I No. 1</span>
+        <span class="price">✦ ONE PENNY ✦</span>
+        <span id="today"></span>
+      </div>
+      <div class="masthead-rule"></div>
+      <h1 class="name">Subconverter</h1>
+      <div class="masthead-rule masthead-rule-thick"></div>
+      <div class="motto">The Proxy Subscription Gazette &mdash; Established 2024 &mdash; Printed Daily</div>
+      <div class="ticker">
+        <span class="ticker-label">LATEST WIRE</span>
+        <span class="ticker-text">✦ Clash Meta v1.18 ships with improved rule-provider support ✦ Surge 6 adds native anytls protocol ✦ Quantumult X gains flow-mapping renderer ✦ GitHub: 0xMario27/subconverter-py ✦ 15+ format interop achieved ✦ sing-box reaches 1.9 milestone ✦</span>
+      </div>
+      <div class="masthead-rule"></div>
     </div>
 
-    <div class="card">
-        <div class="row">
-            <div>
-                <label>目标格式</label>
-                <select id="target">
-                    <option value="clash">Clash</option>
-                    <option value="clashr">ClashR</option>
-                    <option value="surge">Surge</option>
-                    <option value="surfboard">Surfboard</option>
-                    <option value="quanx">Quantumult X</option>
-                    <option value="quan">Quantumult</option>
-                    <option value="loon">Loon</option>
-                    <option value="singbox">sing-box</option>
-                    <option value="ss">SS (SIP002)</option>
-                    <option value="ssr">SSR</option>
-                    <option value="sssub">SS Android</option>
-                    <option value="v2ray">V2Ray / VMess</option>
-                    <option value="trojan">Trojan</option>
-                    <option value="mixed">混合 (Mixed)</option>
-                </select>
-            </div>
-            <div>
-                <label>外部配置 / 规则模板 <span class="hint" style="font-weight:normal;">(可选，提供分流规则与策略组)</span></label>
-                <select id="config">
-                    <option value="">-- 不使用模板（仅节点） --</option>
-                </select>
-            </div>
-            <div class="shrink" style="align-self: flex-end;">
-                <button id="convert" onclick="doConvert()">⚡ 转换</button>
-            </div>
+    <!-- ===== MAIN THREE-COLUMN ===== -->
+    <div class="columns columns-3">
+
+      <!-- ===== LEFT COLUMN: News & Info ===== -->
+      <div class="col">
+        <div class="overline">Foreign Correspondence</div>
+        <h3 class="subhead">跨协议转换引擎<br/>迎来重大升级</h3>
+        <div class="byline">By OUR TECHNICAL STAFF &bull; 技术部</div>
+        <p><span class="dropcap">本</span>报编辑部欣喜宣布，订阅转换局现已支持 <strong>15 种以上</strong>主流代理客户端格式的相互转换。从 Clash Meta 到 Surge 6，从 sing-box 到 Quantumult X，涵盖现代代理生态系统的全部主要参与者。</p>
+        <p>新引擎采用 <strong>零依赖纯 Python</strong> 架构，对 AnyTLS、Mieru 等新兴协议提供原生支持，并通过 ACL4SSR 规则模板实现开箱即用的智能分流。</p>
+        <div class="rule"></div>
+
+        <div class="overline">Technology Report</div>
+        <h3 class="subhead">支持格式一览</h3>
+        <table class="fmt-table">
+          <tr><th>格式</th><th>输入</th><th>输出</th></tr>
+          <tr><td>Clash / Meta</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Surge 2–6</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Quantumult X</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Loon</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>sing-box</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>SS / SSR</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>VMess / VLESS</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Trojan / TUIC</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Hysteria2</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>AnyTLS / Mieru</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>SOCKS / HTTP(S)</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        </table>
+        <div class="rule"></div>
+
+        <h3 class="subhead">读者来信</h3>
+        <div class="brief">
+          <strong>问：如何合并多个订阅？</strong>
+          简单地将多个订阅链接用竖线 | 分隔即可。例如：<code style="font-size:9px;word-break:break-all;">url1|url2|url3</code>，本局将自动合并所有节点并去重。
         </div>
-    </div>
-
-    <div id="error" class="error" style="display:none;"></div>
-    <div id="loading" class="loading" style="display:none;">⏳ 正在获取并转换...</div>
-
-    <div class="card" id="result-card" style="display:none;">
-        <div class="result-header">
-            <span id="result-info"></span>
-            <div>
-                <button class="copy-btn" onclick="downloadResult()">💾 下载</button>
-                <button class="copy-btn" onclick="copyResult()" style="margin-left:6px;">📋 复制</button>
-            </div>
+        <div class="brief">
+          <strong>问：如何获取完整分流规则？</strong>
+          在编辑室中选择 ACL4SSR 规则模板（支持 32 种预设），即可生成包含策略组与完整规则的配置文件。
         </div>
-        <textarea id="result" readonly placeholder="转换结果将显示在这里..."></textarea>
+        <div class="brief">
+          <strong>问：支持自定义规则吗？</strong>
+          支持。将自定义的 .ini 文件放入 base/config/ 目录，即可在下拉菜单中选取。
+        </div>
+        <div class="brief">
+          <strong>问：为何我的节点全是 anytls？</strong>
+          本局已全面支持 AnyTLS 协议解析。转换到 Clash/Surge/sing-box 均可正确保留类型信息与 SNI 参数。
+        </div>
+      </div>
+
+      <!-- ===== CENTER + RIGHT: Main Tools ===== -->
+      <div class="col col-span-2">
+
+        <!-- === EDITORIAL DESK === -->
+        <h2 class="headline" style="text-align:center;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);padding:5px 0;font-size:17px;">
+          ✦ &nbsp;编 辑 室 &nbsp;—&nbsp; EDITORIAL DESK &nbsp;✦
+        </h2>
+        <div class="service-box">
+          <p class="service-intro">在此录入订阅电报，选择刊登格式，交付印刷机印发。支持直链、Base64 编码订阅、Clash YAML 订阅，自动识别。</p>
+
+          <label>订阅电报（Subscription Telegram）</label>
+          <input id="url" type="text" placeholder="https://your-sub.com/xxx  或  ss://...  vmess://...  trojan://... （多个用 | 分隔以合并）" style="margin-bottom:12px;">
+
+          <div class="form-row">
+            <div class="grow">
+              <label>刊登格式（Target Format）</label>
+              <select id="target">
+                <option value="clash">Clash / Clash Meta</option>
+                <option value="clashr">ClashR</option>
+                <option value="surge">Surge (ver=6)</option>
+                <option value="surfboard">Surfboard</option>
+                <option value="quanx">Quantumult X</option>
+                <option value="quan">Quantumult</option>
+                <option value="loon">Loon</option>
+                <option value="singbox">sing-box</option>
+                <option value="ss">Shadowsocks (SIP002)</option>
+                <option value="ssr">ShadowsocksR</option>
+                <option value="sssub">SS Android</option>
+                <option value="v2ray">V2Ray / VMess</option>
+                <option value="trojan">Trojan</option>
+                <option value="mixed">Mixed (混合)</option>
+              </select>
+            </div>
+            <div class="grow">
+              <label>排版规则（Rule Template）<span style="font-weight:400;font-size:8px;letter-spacing:0;">— 可选</span></label>
+              <select id="config">
+                <option value="">— 不套用模板（仅节点） —</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn-generate" id="convert" onclick="doConvert()">印 发</button>
+        </div>
+
+        <!-- STATUS -->
+        <div id="status-error" class="status"></div>
+        <div id="status-loading" class="status" style="color:var(--text-muted);background:var(--warm-light);">⏳ 印刷机正在高速运转，请稍候…</div>
+
+        <!-- RESULT -->
+        <div id="result-card" style="display:none;">
+          <div class="result-bar">
+            <div class="result-meta" id="result-info"></div>
+            <div class="btn-row">
+              <button class="btn-ghost" onclick="copyResult()">📋 抄录至剪贴板</button>
+              <button class="btn-ghost" onclick="downloadResult()">💾 归档至本机</button>
+            </div>
+          </div>
+          <textarea id="result" readonly placeholder="印刷结果将在此呈现…"></textarea>
+        </div>
+
+        <div class="rule rule-thick"></div>
+
+        <!-- === STATISTICS & BELOW-THE-FOLD === -->
+        <div class="columns columns-2">
+          <div class="col">
+            <div class="overline">Quick Statistics</div>
+            <h3 class="subhead">本局数据简报</h3>
+            <div class="stat-row">
+              <div class="stat-chip"><span class="n">15+</span><span class="l">输出格式</span></div>
+              <div class="stat-chip"><span class="n">11</span><span class="l">输入协议</span></div>
+              <div class="stat-chip"><span class="n">32</span><span class="l">规则模板</span></div>
+              <div class="stat-chip"><span class="n">0</span><span class="l">外部依赖</span></div>
+            </div>
+            <div class="rule"></div>
+
+            <div class="overline">Public Notice</div>
+            <h3 class="subhead">API 端点通告</h3>
+            <div class="brief">
+              <strong>核心转换</strong>
+              <code style="font-size:9px;word-break:break-all;">GET /sub?target=&lt;type&gt;&amp;url=&lt;encoded&gt;&amp;config=&lt;template&gt;</code>
+            </div>
+            <div class="brief">
+              <strong>版本查询</strong>
+              <code style="font-size:9px;">GET /version</code>
+            </div>
+            <div class="brief">
+              <strong>规则集获取</strong>
+              <code style="font-size:9px;">GET /getruleset?type=&lt;n&gt;&amp;url=&lt;b64&gt;&amp;group=&lt;b64&gt;</code>
+            </div>
+            <div class="brief">
+              <strong>管理接口</strong>（需 Token）
+              <code style="font-size:9px;">/refreshrules /readconf /updateconf /flushcache</code>
+            </div>
+          </div>
+          <div class="col">
+            <div class="overline">Classified Advertisements</div>
+            <div class="ad-box">
+              <div class="ad-title">⚡ Clash Meta v1.18</div>
+              <div class="ad-body">现已支持 rule-provider 流式映射与 SNI 透传。请将您的客户端升级至最新版本。</div>
+            </div>
+            <div class="ad-box">
+              <div class="ad-title">📡 sing-box 1.9</div>
+              <div class="ad-body">新增对 AnyTLS 与 Mieru 协议的原生入站支持。路由引擎性能提升 40%。</div>
+            </div>
+            <div class="ad-box">
+              <div class="ad-title">🔐 WireGuard + TUIC</div>
+              <div class="ad-body">本局现已完整解析 WireGuard 与 TUIC 链接。支持 Surge 与 sing-box 输出格式。</div>
+            </div>
+            <div class="quote" style="margin-top:10px;">
+              "转换局已成为我每日工作流程中不可或缺的一环。"
+              <br/><span class="quote-attrib">— 匿名用户，订阅转换局常客</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="rule rule-thick"></div>
+
+        <!-- === BOTTOM NEWS SECTION === -->
+        <div class="columns columns-3">
+          <div class="col">
+            <div class="overline">On This Day</div>
+            <h3 class="subhead">新协议支持</h3>
+            <p style="font-size:10px;">本局最新版本正式加入 <strong>AnyTLS</strong> 与 <strong>Mieru</strong> 协议支持。这两种新兴 TLS 隧道协议正在亚洲与北美节点运营商中快速普及。</p>
+          </div>
+          <div class="col">
+            <div class="overline">Coming Soon</div>
+            <h3 class="subhead">Docker 部署</h3>
+            <p style="font-size:10px;">单行命令即可启动：<br/><code style="font-size:9px;">make build && make run</code><br/>支持 x86_64 与 ARM64 架构。自动挂载缓存目录以复用规则集。</p>
+          </div>
+          <div class="col">
+            <div class="overline">Letter to the Editor</div>
+            <h3 class="subhead">致谢</h3>
+            <p style="font-size:10px;">本工具基于 <strong>tindy2013/subconverter</strong> 的原创设计，使用 Python 重写并以 MIT 协议开源。感谢 ACL4SSR 社区维护的规则集。</p>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!-- ===== FOOTER ===== -->
+    <div class="footer">
+      <div class="masthead-rule masthead-rule-thick" style="margin-top:24px;"></div>
+      <div class="footer-text">
+        SUBCONVERTER &copy; 2024–2026 &bull; Printed on recycled ethernet packets
+        &bull; All proxy telegrams are end-to-end encrypted &bull; v{{ version }}
+        &bull; Published by the Subconverter Gazette, Ltd.
+      </div>
+    </div>
+
+  </div>
 </div>
 
+<!-- ===== SCRIPTS ===== -->
 <script>
-const VERSION = "{{ version }}";
-
-// Load available configs on page load
-async function loadConfigs() {
-    try {
-        const resp = await fetch('/api/configs');
-        const configs = await resp.json();
-        const sel = document.getElementById('config');
-        configs.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c.path;
-            opt.textContent = c.display;
-            sel.appendChild(opt);
-        });
-    } catch (e) {
-        console.error('Failed to load configs:', e);
+(function() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const canvas = document.querySelector('.magic-particles');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
+  resize(); addEventListener('resize', resize);
+  const particles = Array.from({length: 18}, () => ({
+    x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+    vx: (Math.random() - .5) * .5, vy: (Math.random() - .5) * .4 - .25,
+    life: 1, maxLife: 180 + Math.random() * 350, size: 1 + Math.random() * 2.5
+  }));
+  (function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy; p.life--;
+      if (p.life <= 0 || p.y < -20 || p.x < -20 || p.x > canvas.width + 20) {
+        p.x = Math.random() * canvas.width; p.y = canvas.height + 10; p.life = p.maxLife;
+      }
+      const alpha = Math.min(1, p.life / 50) * .45;
+      ctx.fillStyle = `rgba(200,170,100,${alpha})`; ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+      if (Math.random() < .025) {
+        ctx.fillStyle = `rgba(255,220,140,.75)`; ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * 2.2, 0, Math.PI * 2); ctx.fill();
+      }
     }
-}
-loadConfigs();
+    requestAnimationFrame(animate);
+  })();
+})();
+</script>
+
+<script>
+document.getElementById('today').textContent = new Date().toLocaleDateString('zh-CN', {year:'numeric',month:'long',day:'numeric',weekday:'long'});
+
+(async function() {
+  try {
+    const resp = await fetch('/api/configs');
+    const configs = await resp.json();
+    const sel = document.getElementById('config');
+    configs.forEach(c => { const o = document.createElement('option'); o.value = c.path; o.textContent = c.display; sel.appendChild(o); });
+  } catch(e) {}
+})();
 
 async function doConvert() {
-    const url = document.getElementById('url').value.trim();
-    const target = document.getElementById('target').value;
-    const config = document.getElementById('config').value;
-    const errEl = document.getElementById('error');
-    const loadEl = document.getElementById('loading');
-    const cardEl = document.getElementById('result-card');
-    const resultEl = document.getElementById('result');
-    const infoEl = document.getElementById('result-info');
-    const btn = document.getElementById('convert');
+  const url = document.getElementById('url').value.trim();
+  const target = document.getElementById('target').value;
+  const config = document.getElementById('config').value;
+  const errEl = document.getElementById('status-error');
+  const loadEl = document.getElementById('status-loading');
+  const cardEl = document.getElementById('result-card');
+  const resultEl = document.getElementById('result');
+  const infoEl = document.getElementById('result-info');
+  const btn = document.getElementById('convert');
 
-    errEl.style.display = 'none';
-    if (!url) {
-        errEl.textContent = '请输入订阅链接';
-        errEl.style.display = 'block';
-        return;
+  errEl.style.display = 'none'; errEl.className = 'status';
+  if (!url) { errEl.className = 'status error'; errEl.textContent = '请录入订阅电报。'; return; }
+
+  btn.disabled = true; loadEl.style.display = 'block'; cardEl.style.display = 'none'; resultEl.value = '';
+
+  try {
+    const encoded = encodeURIComponent(url);
+    let api = `/sub?target=${target}&url=${encoded}`;
+    if (config) api += `&config=${encodeURIComponent(config)}`;
+    const resp = await fetch(api);
+    const text = await resp.text();
+
+    if (resp.ok) {
+      resultEl.value = text;
+      const lines = text.split('\n').length;
+      const kb = (text.length / 1024).toFixed(1);
+      const nodes = (text.match(/^\s*-?\s*\{?name:/gm) || []).length;
+      const rules = (text.match(/^\s*- (?:RULE-SET|DOMAIN|IP-CIDR|GEOIP|MATCH)/gm) || []).length;
+      let meta = `<span>${target}${config ? ' + 模板' : ''}</span>`;
+      meta += `<span>${lines} 行</span>`;
+      if (nodes) meta += `<span class="num">${nodes}</span> 节点`;
+      if (rules) meta += `<span class="num">${rules}</span> 规则`;
+      meta += `<span>${kb} KB</span>`;
+      infoEl.innerHTML = meta;
+      cardEl.style.display = 'block';
+    } else {
+      errEl.className = 'status error'; errEl.textContent = text.trim() || '印刷机故障，请稍后再试。';
     }
-
-    btn.disabled = true;
-    loadEl.style.display = 'block';
-    cardEl.style.display = 'none';
-    resultEl.value = '';
-
-    try {
-        const encoded = encodeURIComponent(url);
-        let apiUrl = `/sub?target=${target}&url=${encoded}`;
-        if (config) {
-            apiUrl += `&config=${encodeURIComponent(config)}`;
-        }
-        const resp = await fetch(apiUrl);
-        const text = await resp.text();
-
-        if (resp.ok) {
-            resultEl.value = text;
-            const nodeCount = (text.match(/^\s*-\s*name:/gm) || []).length;
-            const ruleCount = (text.match(/^\s*-\s*(?:DOMAIN|IP-CIDR|MATCH|RULE-SET|GEOIP)/gm) || []).length;
-            let info = `${target}`;
-            if (config) info += ` + 模板`;
-            info += ` · ${text.split('\n').length} 行`;
-            if (nodeCount) info += ` · ${nodeCount} 节点`;
-            if (ruleCount) info += ` · ${ruleCount} 规则`;
-            info += ` · ${(text.length / 1024).toFixed(1)} KB`;
-            infoEl.textContent = info;
-            cardEl.style.display = 'block';
-        } else {
-            errEl.textContent = text || '转换失败';
-            errEl.style.display = 'block';
-        }
-    } catch (e) {
-        errEl.textContent = '网络错误: ' + e.message;
-        errEl.style.display = 'block';
-    } finally {
-        btn.disabled = false;
-        loadEl.style.display = 'none';
-    }
+  } catch (e) {
+    errEl.className = 'status error'; errEl.textContent = '电报网络异常：' + e.message;
+  } finally {
+    btn.disabled = false; loadEl.style.display = 'none';
+  }
 }
 
 function copyResult() {
-    const ta = document.getElementById('result');
-    ta.select();
-    document.execCommand('copy');
-    const btn = document.querySelectorAll('.copy-btn')[1];
-    btn.textContent = '✅ 已复制';
-    setTimeout(() => btn.textContent = '📋 复制', 1500);
+  const ta = document.getElementById('result'); ta.select(); document.execCommand('copy');
+  showNotice('电报已抄录至剪贴板。', 'success');
 }
-
 function downloadResult() {
-    const text = document.getElementById('result').value;
-    const target = document.getElementById('target').value;
-    const ext = {
-        'clash': 'yaml', 'clashr': 'yaml', 'surge': 'conf', 'surfboard': 'conf',
-        'quanx': 'conf', 'quan': 'conf', 'loon': 'conf', 'singbox': 'json',
-        'ss': 'txt', 'ssr': 'txt', 'sssub': 'txt', 'v2ray': 'txt',
-        'trojan': 'txt', 'mixed': 'txt'
-    }[target] || 'txt';
-    const filename = `subconverter.${target}.${Date.now()}.${ext}`;
-    const blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(a.href);
-    const btn = document.querySelector('.copy-btn');
-    btn.textContent = '✅ 已下载';
-    setTimeout(() => btn.textContent = '💾 下载', 1500);
+  const text = document.getElementById('result').value;
+  const target = document.getElementById('target').value;
+  const m = {clash:'yaml',clashr:'yaml',surge:'conf',surfboard:'conf',quanx:'conf',quan:'conf',loon:'conf',singbox:'json',ss:'txt',ssr:'txt',sssub:'txt',v2ray:'txt',trojan:'txt',mixed:'txt'};
+  const ext = m[target] || 'txt';
+  const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `subconverter_${target}_${Date.now()}.${ext}`;
+  a.click(); URL.revokeObjectURL(a.href);
+  showNotice('存档已归档至本机。', 'success');
 }
-
-// Enter key to convert
-document.getElementById('url').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doConvert();
-});
-
-// Auto-convert if URL is in query string
-const params = new URLSearchParams(window.location.search);
-const qUrl = params.get('url');
-const qTarget = params.get('target');
-if (qUrl) {
-    document.getElementById('url').value = decodeURIComponent(qUrl);
-    if (qTarget) document.getElementById('target').value = qTarget;
-    doConvert();
+function showNotice(msg, type) {
+  const n = document.createElement('div');
+  n.className = 'telegram-notice ' + (type || '');
+  n.innerHTML = `<span class="telegram-label">TELEGRAM</span><span class="telegram-msg">${msg}</span><span class="telegram-close" onclick="this.parentElement.remove()">✕</span>`;
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 3000);
 }
+document.getElementById('url').addEventListener('keydown', e => { if (e.key === 'Enter') doConvert(); });
 </script>
 </body>
 </html>

@@ -128,7 +128,8 @@ def _build_any_link(node: Proxy) -> str:
 def proxy_to_ssd(nodes: List[Proxy], group: str, userinfo: str, settings: ExtraSettings) -> str:
     ss_nodes = [n for n in nodes if n.Type == ProxyType.Shadowsocks]
     lines = [f"{n.Hostname}:{n.Port}:{n.EncryptMethod}:{n.Password}" for n in ss_nodes]
-    return f"ssd://{base64_encode('\n'.join(lines))}"
+    sep = '\n'
+    return f"ssd://{base64_encode(sep.join(lines))}"
 
 
 def proxy_to_ss_sub(base_conf: str, nodes: List[Proxy], settings: ExtraSettings) -> str:
