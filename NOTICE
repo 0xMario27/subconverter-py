@@ -27,31 +27,6 @@ derived from the ACL4SSR project.
   - License: Creative Commons Attribution-ShareAlike 4.0 (CC-BY-SA-4.0)
   - Attribution: ACL4SSR Community
 
-In accordance with CC-BY-SA-4.0, modifications to these rulesets
-(adapted for subconverter format) are shared under the same terms.
-
----
-
-## DivineEngine Rulesets
-
-The `base/rules/DivineEngine/` directory contains rulesets from the
-DivineEngine Profiles project.
-
-  - Project: https://github.com/DivineEngine/Profiles
-  - Author: DivineEngine
-
----
-
-## Other Ruleset Sources
-
-Additional rulesets in `base/rules/` are sourced from:
-
-  - lhie1 Rules: https://github.com/lhie1/Rules
-  - NobyDa Scripts: https://github.com/NobyDa/Scripts
-
-These rulesets are included for compatibility and their respective
-authors retain all rights.
-
 ---
 
 ## Python Dependencies
@@ -69,10 +44,7 @@ Runtime dependencies and their licenses:
 
 ---
 
-## How to Apply
-
 The Python source code (`src/`) is an independent implementation written
 from scratch and is original work by the subconverter-py authors.
 
-The combined work, which includes the GPLv3-licensed `base/` files, is
-released under GPLv3. See the LICENSE file for full terms.
+The combined work is released under GPLv3. See the LICENSE file for full terms.

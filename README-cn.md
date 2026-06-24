@@ -243,8 +243,5 @@ subconverter-py/
 |------|------|------|
 | 原始 subconverter | [tindy2013/subconverter](https://github.com/tindy2013/subconverter) | GPLv3 |
 | ACL4SSR 规则集 | [ACL4SSR/ACL4SSR](https://github.com/ACL4SSR/ACL4SSR) | CC-BY-SA-4.0 |
-| DivineEngine 规则集 | [DivineEngine/Profiles](https://github.com/DivineEngine/Profiles) | — |
-| lhie1 规则 | [lhie1/Rules](https://github.com/lhie1/Rules) | — |
-| NobyDa 规则 | [NobyDa/Scripts](https://github.com/NobyDa/Scripts) | — |
 
 详细署名见 [NOTICE](NOTICE)。

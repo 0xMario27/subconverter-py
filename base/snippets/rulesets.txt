@@ -1,20 +1,4 @@
 🎯 全球直连,rules/LocalAreaNetwork.list
 Ⓜ️ 微软服务,rules/MSServices.list
-🎯 全球直连,rules/DivineEngine/Surge/Ruleset/Unbreak.list
-🛑 全球拦截,rules/NobyDa/Surge/AdRule.list
-🛑 全球拦截,rules/DivineEngine/Surge/Ruleset/Guard/Hijacking.list
-;🎥 NETFLIX,rules/DivineEngine/Surge/Ruleset/StreamingMedia/Video/Netflix.list
-🌍 国外媒体,rules/DivineEngine/Surge/Ruleset/StreamingMedia/Streaming.list
-🌏 国内媒体,rules/lhie1/Surge/Surge 3/Provider/Media/Bilibili.list
-🌏 国内媒体,rules/lhie1/Surge/Surge 3/Provider/Media/iQiyi.list
-🌏 国内媒体,rules/lhie1/Surge/Surge 3/Provider/Media/Letv.list
-🌏 国内媒体,rules/lhie1/Surge/Surge 3/Provider/Media/MOO.list
-🌏 国内媒体,rules/lhie1/Surge/Surge 3/Provider/Media/Tencent Video.list
-🌏 国内媒体,rules/lhie1/Surge/Surge 3/Provider/Media/Youku.list
-📲 电报信息,rules/DivineEngine/Surge/Ruleset/Extra/Telegram/Telegram.list
-🔰 节点选择,rules/DivineEngine/Surge/Ruleset/Global.list
-🍎 苹果服务,rules/DivineEngine/Surge/Ruleset/Extra/Apple/Apple.list
-🎯 全球直连,rules/DivineEngine/Surge/Ruleset/China.list
-🎯 全球直连,rules/NobyDa/Surge/Download.list
 🎯 全球直连,[]GEOIP,CN
 🐟 漏网之鱼,[]FINAL
