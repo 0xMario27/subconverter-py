@@ -25,7 +25,32 @@ def get_global_settings():
 
 
 VERSION = "0.1.0"
-USER_AGENT = f"subconverter-py/{VERSION}"
+
+# Map target format to a realistic proxy client User-Agent
+TARGET_UA_MAP = {
+    'clash': 'clash-verge/1.3.8',
+    'clashr': 'ClashForAndroid/2.0',
+    'surge': 'Surge/6.0 (iOS; compatible)',
+    'surfboard': 'Surfboard/2.0 (Android)',
+    'quanx': 'Quantumult%20X/1.4.0',
+    'quan': 'Quantumult/2.0',
+    'loon': 'Loon/3.0 (iOS)',
+    'singbox': 'sing-box/1.9.0',
+    'v2ray': 'v2rayN/6.0',
+    'trojan': 'Trojan-Qt5/1.0',
+    'ss': 'Shadowrocket/2.2.0',
+    'ssr': 'Shadowrocket/2.2.0',
+    'sssub': 'Shadowsocks/5.0 (Android)',
+    'mixed': 'Shadowrocket/2.2.0',
+}
+
+# Default UA for when target is unknown
+DEFAULT_UA = f"SubConverter/{VERSION}"
+
+
+def get_ua_for_target(target: str) -> str:
+    """Get a suitable User-Agent for the given target format."""
+    return TARGET_UA_MAP.get(target, DEFAULT_UA)
 
 
 def get_system_proxy() -> str:
@@ -51,7 +76,8 @@ def get_md5(data: str) -> str:
 
 def web_get(url: str, proxy: str = "", cache_ttl: int = 0,
             response_headers: Optional[Dict] = None,
-            request_headers: Optional[Dict] = None) -> str:
+            request_headers: Optional[Dict] = None,
+            target: str = "") -> str:
     """
     Fetch content from URL with optional caching.
 
@@ -61,9 +87,7 @@ def web_get(url: str, proxy: str = "", cache_ttl: int = 0,
         cache_ttl: Cache TTL in seconds (0 = no cache)
         response_headers: Output dict for response headers
         request_headers: Additional request headers
-
-    Returns:
-        Response content as string
+        target: Target format for UA spoofing
     """
     if starts_with(url, "data:"):
         return _data_get(url)
@@ -88,7 +112,7 @@ def web_get(url: str, proxy: str = "", cache_ttl: int = 0,
         else:
             write_log(0, f"CACHE NOT EXIST: '{url}', creating new cache.")
 
-        content = _curl_get(url, proxy, response_headers, request_headers)
+        content = _curl_get(url, proxy, response_headers, request_headers, target)
         if content:
             file_write(cache_path, content, True)
             write_log(0, f"CACHE SAVED: '{url[:60]}...'", LOG_LEVEL_VERBOSE)
@@ -99,7 +123,7 @@ def web_get(url: str, proxy: str = "", cache_ttl: int = 0,
                 content = file_get(cache_path)
         return content
 
-    return _curl_get(url, proxy, response_headers, request_headers)
+    return _curl_get(url, proxy, response_headers, request_headers, target)
 
 
 def _data_get(url: str) -> str:
@@ -118,21 +142,22 @@ def _data_get(url: str) -> str:
 
 
 def _curl_get(url: str, proxy: str = "", response_headers: Optional[Dict] = None,
-              request_headers: Optional[Dict] = None) -> str:
+              request_headers: Optional[Dict] = None, target: str = "") -> str:
     """
     Perform HTTP GET request.
 
     Returns content string.
     """
+    ua = get_ua_for_target(target) if target else DEFAULT_UA
     headers = {
-        "User-Agent": USER_AGENT,
+        "User-Agent": ua,
         "SubConverter-Request": "1",
         "SubConverter-Version": VERSION,
     }
     if request_headers:
         headers.update(request_headers)
 
-    proxies = None
+    proxies = {'http': None, 'https': None}  # Default: no proxy
     real_url = url
     if proxy:
         if starts_with(proxy, "cors:"):

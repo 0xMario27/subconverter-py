@@ -541,7 +541,7 @@ def handle_sub(req) -> Response:
             url = trim(url)
             write_log(0, f"Fetching node data from url '{url}'.", LOG_LEVEL_INFO)
             if add_nodes(url, insert_nodes, group_id, proxy_sub,
-                        l_exclude_remarks, l_include_remarks) == -1:
+                        l_exclude_remarks, l_include_remarks, target=arg_target) == -1:
                 if not gs.skip_failed_links:
                     return Response(
                         f"The following link doesn't contain any valid node info: {url}",
@@ -556,7 +556,7 @@ def handle_sub(req) -> Response:
         url = trim(url)
         write_log(0, f"Fetching node data from url '{url}'.", LOG_LEVEL_INFO)
         if add_nodes(url, nodes, group_id, proxy_sub,
-                    l_exclude_remarks, l_include_remarks) == -1:
+                    l_exclude_remarks, l_include_remarks, target=arg_target) == -1:
             if not gs.skip_failed_links:
                 return Response(
                     f"The following link doesn't contain any valid node info: {url}",

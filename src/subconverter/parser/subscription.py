@@ -218,7 +218,7 @@ def _get_proxy_subscription() -> str:
 def add_nodes(link: str, all_nodes: List[Proxy], group_id: int,
               proxy: str = "", exclude_remarks: List[str] = None,
               include_remarks: List[str] = None,
-              sub_info: Dict = None) -> int:
+              sub_info: Dict = None, target: str = "") -> int:
     """Fetch and parse a subscription URL or local file. Returns count or -1."""
     import re as re_module
 
@@ -231,7 +231,7 @@ def add_nodes(link: str, all_nodes: List[Proxy], group_id: int,
 
     if is_link(link):
         write_log(0, f"Fetching subscription from URL: {link}", LOG_LEVEL_INFO)
-        content = web_get(link, proxy or _get_proxy_subscription(), cache_ttl=3600)
+        content = web_get(link, proxy or _get_proxy_subscription(), cache_ttl=3600, target=target)
     elif file_exist(link):
         write_log(0, f"Reading subscription from file: {link}", LOG_LEVEL_INFO)
         content = file_get(link)
@@ -242,7 +242,7 @@ def add_nodes(link: str, all_nodes: List[Proxy], group_id: int,
             all_nodes.append(node)
             return 1
         if is_link(link):
-            content = web_get(link, proxy or _get_proxy_subscription(), cache_ttl=3600)
+            content = web_get(link, proxy or _get_proxy_subscription(), cache_ttl=3600, target=target)
         else:
             write_log(0, f"Invalid link or file: {link}", LOG_LEVEL_WARNING)
             return -1
@@ -251,10 +251,15 @@ def add_nodes(link: str, all_nodes: List[Proxy], group_id: int,
         write_log(0, f"Empty content from: {link}", LOG_LEVEL_WARNING)
         return -1
 
-    # Check for Clash YAML subscription
+    # Check for Clash YAML subscription (full config or proxy list)
+    # Full Clash configs start with general settings, proxies: is usually later
     stripped = content.strip()
-    if stripped.startswith(('proxies:', 'Proxy:')) or (
-            stripped.startswith('{') and '"proxies"' in stripped[:200].lower()):
+    is_clash = (
+        stripped.startswith('proxies:') or stripped.startswith('Proxy:') or
+        'proxies:' in stripped[:5000] or 'Proxy:' in stripped[:5000] or
+        stripped.startswith('mixed-port:') or stripped.startswith('port:')
+    )
+    if is_clash:
         n = explode_clash_sub(content, all_nodes, str(group_id))
         for node in all_nodes[-n:]:
             node.GroupId = group_id
