@@ -496,8 +496,9 @@ def _surge_proxy(node: Proxy) -> Optional[str]:
             proxy += f", sni={node.ServerName}"
         if node.AllowInsecure is not None:
             proxy += f", skip-cert-verify={str(node.AllowInsecure).lower()}"
-        if node.Fingerprint:
-            proxy += f", server-cert-fingerprint-sha256={node.Fingerprint}"
+        fp = node.Fingerprint or ''
+        if fp and len(fp) == 64 and all(c in '0123456789abcdefABCDEF' for c in fp):
+            proxy += f", server-cert-fingerprint-sha256={fp}"
         if node.Ports:
             proxy += f", port-hopping={node.Ports}"
         return proxy
@@ -509,8 +510,10 @@ def _surge_proxy(node: Proxy) -> Optional[str]:
             proxy += f", sni={sni}"
         if node.AllowInsecure is not None:
             proxy += f", skip-cert-verify={str(node.AllowInsecure).lower()}"
-        if node.Fingerprint:
-            proxy += f", server-cert-fingerprint-sha256={node.Fingerprint}"
+        # Only output fingerprint if it looks like a real SHA256 hash (64 hex chars)
+        fp = node.Fingerprint or ''
+        if fp and len(fp) == 64 and all(c in '0123456789abcdefABCDEF' for c in fp):
+            proxy += f", server-cert-fingerprint-sha256={fp}"
         return proxy
 
     elif node.Type == ProxyType.VLESS:
