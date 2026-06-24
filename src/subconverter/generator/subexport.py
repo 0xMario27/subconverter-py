@@ -389,7 +389,16 @@ def proxy_to_surge(nodes: List[Proxy], base_conf: str,
                 line = trim(line)
                 if not line or line[0] in (';', '#') or line.startswith('//'):
                     continue
-                result.append(f"{line},{rc.rule_group}")
+                # Surge format: type,content[,no-resolve],policy
+                # The ruleset lines are: type,content[,no-resolve]
+                # We need to add the group as the policy BEFORE no-resolve
+                parts = line.split(',')
+                if len(parts) >= 2 and trim(parts[-1]).lower() == 'no-resolve':
+                    # type,content,no-resolve -> type,content,group,no-resolve
+                    core = ','.join(parts[:-1])
+                    result.append(f"{core},{rc.rule_group},no-resolve")
+                else:
+                    result.append(f"{line},{rc.rule_group}")
 
     result.append("[Host]")
     result.append("localhost = 127.0.0.1")
