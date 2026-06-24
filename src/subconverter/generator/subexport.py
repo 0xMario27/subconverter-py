@@ -376,14 +376,26 @@ def _clash_yaml_dump(config: dict) -> str:
                         else:
                             output_lines.append(f'{prefix}    {ik}: {iv}')
         elif isinstance(value, dict):
-            output_lines.append(f'{prefix}{key}:')
-            for k, v in value.items():
-                if isinstance(v, dict):
-                    output_lines.append(f'{prefix}  {k}:')
-                    for ik, iv in v.items():
-                        output_lines.append(f'{prefix}    {ik}: {iv}')
-                else:
-                    output_lines.append(f'{prefix}  {k}: {v}')
+            if key == 'rule-providers':
+                # Output rule-providers in flow mapping style
+                output_lines.append(f'{prefix}{key}:')
+                for pk, pv in value.items():
+                    parts = []
+                    for ik, iv in pv.items():
+                        if isinstance(iv, str):
+                            parts.append(f'{ik}: "{iv}"')
+                        else:
+                            parts.append(f'{ik}: {iv}')
+                    output_lines.append(f'{prefix}  {pk}: {{{', '.join(parts)}}}')
+            else:
+                output_lines.append(f'{prefix}{key}:')
+                for k, v in value.items():
+                    if isinstance(v, dict):
+                        output_lines.append(f'{prefix}  {k}:')
+                        for ik, iv in v.items():
+                            output_lines.append(f'{prefix}    {ik}: {iv}')
+                    else:
+                        output_lines.append(f'{prefix}  {k}: {v}')
         elif value is None:
             pass
         else:
