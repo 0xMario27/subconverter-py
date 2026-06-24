@@ -21,7 +21,16 @@ class ProxyGroupType(Enum):
     Smart = auto()
 
     def __str__(self):
-        return self.name.lower().replace('_', '-')
+        names = {
+            ProxyGroupType.Select: 'select',
+            ProxyGroupType.URLTest: 'url-test',
+            ProxyGroupType.Fallback: 'fallback',
+            ProxyGroupType.LoadBalance: 'load-balance',
+            ProxyGroupType.Relay: 'relay',
+            ProxyGroupType.SSID: 'ssid',
+            ProxyGroupType.Smart: 'smart',
+        }
+        return names.get(self, self.name.lower())
 
 
 class BalanceStrategy(Enum):
