@@ -923,6 +923,88 @@ def explode_tg(tg: str, node: Proxy):
                        server, port, user, _pass)
 
 
+def explode_anytls(anytls: str, node: Proxy):
+    """Parse AnyTLS links: anytls://password@server:port?params#remark"""
+    if starts_with(anytls, "anytls://"):
+        anytls = anytls[9:]
+
+    link, remark = _extract_remark_from_link(anytls)
+
+    at_pos = link.rfind('@')
+    password = ""
+    hostport = link
+    if at_pos != -1:
+        password = url_decode(link[:at_pos])
+        hostport = link[at_pos + 1:]
+
+    params_pos = hostport.find('?')
+    params = ""
+    if params_pos != -1:
+        params = hostport[params_pos + 1:]
+        hostport = hostport[:params_pos]
+
+    if hostport.endswith('/'):
+        hostport = hostport[:-1]
+
+    colon_pos = hostport.rfind(':')
+    if colon_pos != -1:
+        server = hostport[:colon_pos]
+        port = hostport[colon_pos + 1:]
+    else:
+        server = hostport
+        port = "443"
+
+    sni = get_url_arg(params, "sni") or server
+    fp = get_url_arg(params, "fp") or ""
+    insecure = get_url_arg(params, "insecure") or ""
+    scv = (insecure == "1") if insecure else None
+
+    _common_construct(node, ProxyType.AnyTLS, DEFAULT_GROUPS[ProxyType.AnyTLS],
+                      remark or server, server, port, scv=scv)
+    node.Password = password
+    node.SNI = sni
+    node.ServerName = sni
+    node.Fingerprint = fp
+
+
+def explode_mieru(mieru: str, node: Proxy):
+    """Parse Mieru links: mieru://password@server:port?params#remark"""
+    if starts_with(mieru, "mieru://"):
+        mieru = mieru[8:]
+
+    link, remark = _extract_remark_from_link(mieru)
+
+    at_pos = link.rfind('@')
+    password = ""
+    hostport = link
+    if at_pos != -1:
+        password = url_decode(link[:at_pos])
+        hostport = link[at_pos + 1:]
+
+    params_pos = hostport.find('?')
+    if params_pos != -1:
+        params = hostport[params_pos + 1:]
+        hostport = hostport[:params_pos]
+
+    colon_pos = hostport.rfind(':')
+    if colon_pos != -1:
+        server = hostport[:colon_pos]
+        port = hostport[colon_pos + 1:]
+    else:
+        server = hostport
+        port = "443"
+
+    sni = get_url_arg(params, "sni") or server
+    username = get_url_arg(params, "username") or ""
+
+    _common_construct(node, ProxyType.Mieru, DEFAULT_GROUPS[ProxyType.Mieru],
+                      remark or server, server, port)
+    node.Password = password
+    node.Username = username
+    node.SNI = sni
+    node.ServerName = sni
+
+
 # ==================== Main Exploder ====================
 
 def explode(link: str, node: Proxy) -> bool:
@@ -959,12 +1041,9 @@ def explode(link: str, node: Proxy) -> bool:
     elif link_lower.startswith("tg://"):
         explode_tg(link, node)
     elif link_lower.startswith("anytls://"):
-        # AnyTLS - simple handler (fully parse if needed)
-        _common_construct(node, ProxyType.AnyTLS, DEFAULT_GROUPS[ProxyType.AnyTLS],
-                          "", "", "0")
+        explode_anytls(link, node)
     elif link_lower.startswith("mieru://"):
-        _common_construct(node, ProxyType.Mieru, DEFAULT_GROUPS[ProxyType.Mieru],
-                          "", "", "0")
+        explode_mieru(link, node)
     else:
         return False
 
