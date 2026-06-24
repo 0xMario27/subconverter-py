@@ -271,6 +271,18 @@ def _clash_proxy(node: Proxy, clash_r: bool = False) -> Optional[Dict]:
             p['congestion-controller'] = node.CongestionControl
         if node.Alpn:
             p['alpn'] = [node.Alpn]
+    elif node.Type == ProxyType.AnyTLS:
+        p['type'] = 'anytls'
+        p['password'] = node.Password
+        if node.ServerName:
+            p['servername'] = node.ServerName
+        if node.TransferProtocol and node.TransferProtocol != 'tcp':
+            p['network'] = node.TransferProtocol
+    elif node.Type == ProxyType.Mieru:
+        p['type'] = 'mieru'
+        p['password'] = node.Password
+        if node.Username:
+            p['username'] = node.Username
     else:
         return None
 
@@ -427,6 +439,16 @@ def _surge_proxy(node: Proxy) -> Optional[str]:
         if node.Username and node.Password:
             return f"{name} = socks5, {node.Hostname}, {node.Port}, username={node.Username}, password={node.Password}"
         return f"{name} = socks5, {node.Hostname}, {node.Port}"
+    elif node.Type == ProxyType.AnyTLS:
+        opts = f"password={node.Password}"
+        if node.ServerName and node.ServerName != node.Hostname:
+            opts += f", sni={node.ServerName}"
+        return f"{name} = anytls, {node.Hostname}, {node.Port}, {opts}"
+    elif node.Type == ProxyType.Mieru:
+        opts = f"password={node.Password}"
+        if node.Username:
+            opts += f", username={node.Username}"
+        return f"{name} = mieru, {node.Hostname}, {node.Port}, {opts}"
 
     return None
 
@@ -493,6 +515,8 @@ def _quanx_proxy(node: Proxy) -> Optional[str]:
         ws = (node.TransferProtocol == 'ws')
         tls = node.TLSStr == 'tls'
         return f"trojan={node.Hostname}:{node.Port}, password={node.Password}, over-tls={'true' if tls else 'false'}, tls-host={node.ServerName or node.Hostname}, fast-open=false, udp-relay=false, tag={name}"
+    elif node.Type == ProxyType.AnyTLS:
+        return f"anytls={node.Hostname}:{node.Port}, password={node.Password}, sni={node.ServerName or node.Hostname}, fast-open=false, udp-relay=false, tag={name}"
 
     return None
 
@@ -679,6 +703,7 @@ def _build_any_link(node: Proxy) -> str:
         ProxyType.VLESS: _build_vless_link,
         ProxyType.Hysteria: _build_hysteria_link,
         ProxyType.Hysteria2: _build_hysteria_link,
+        ProxyType.AnyTLS: _build_trojan_link,  # AnyTLS uses trojan-like URL format
     }
     builder = builders.get(node.Type)
     if builder:
@@ -768,6 +793,11 @@ def _singbox_proxy(node: Proxy) -> Optional[Dict]:
     elif node.Type == ProxyType.TUIC:
         out['type'] = 'tuic'
         out['uuid'] = node.UserId
+        out['password'] = node.Password
+        if node.ServerName:
+            out['tls'] = {'enabled': True, 'server_name': node.ServerName}
+    elif node.Type == ProxyType.AnyTLS:
+        out['type'] = 'anytls'
         out['password'] = node.Password
         if node.ServerName:
             out['tls'] = {'enabled': True, 'server_name': node.ServerName}

@@ -151,6 +151,8 @@ def _curl_get(url: str, proxy: str = "", response_headers: Optional[Dict] = None
         if response_headers is not None:
             response_headers['status_code'] = r.status_code
             response_headers['headers'] = dict(r.headers)
+        # Always decode as UTF-8 (servers often don't set charset header)
+        r.encoding = 'utf-8'
         if r.status_code == 200:
             return r.text
         return "" if gs is None or not gs.api_mode else r.text

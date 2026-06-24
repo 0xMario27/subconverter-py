@@ -1129,6 +1129,37 @@ def _parse_clash_proxy(proxy: dict, default_group: str = "") -> Optional[Proxy]:
         node.Type = ProxyType.SOCKS5
         node.Username = proxy.get('username', '')
         node.Password = proxy.get('password', '')
+    elif ptype == 'anytls':
+        node.Type = ProxyType.AnyTLS
+        node.Password = proxy.get('password', '')
+        node.ServerName = proxy.get('servername', '') or proxy.get('sni', server)
+        node.TransferProtocol = proxy.get('network', 'tcp')
+    elif ptype == 'tuic':
+        node.Type = ProxyType.TUIC
+        node.UserId = proxy.get('uuid', '')
+        node.Password = proxy.get('password', '')
+        node.ServerName = proxy.get('sni', server) or proxy.get('servername', '')
+        node.CongestionControl = proxy.get('congestion-controller', '')
+    elif ptype == 'snell':
+        node.Type = ProxyType.Snell
+        node.Password = proxy.get('password', '')
+        node.Host = proxy.get('sni', '') or proxy.get('host', '')
+        node.OBFS = proxy.get('obfs', '')
+    elif ptype == 'mieru':
+        node.Type = ProxyType.Mieru
+        node.Password = proxy.get('password', '')
+        node.Username = proxy.get('username', '')
+    else:
+        # Unknown type - still create a basic node so it can pass through
+        # Some targets can handle unknown types if we just carry the data
+        node.Type = ProxyType.Unknown
+        # Store generic fields for passthrough
+        if proxy.get('password'):
+            node.Password = str(proxy.get('password', ''))
+        if proxy.get('username'):
+            node.Username = str(proxy.get('username', ''))
+        if proxy.get('uuid'):
+            node.UserId = str(proxy.get('uuid', ''))
 
     return node if node.Type != ProxyType.Unknown else None
 
