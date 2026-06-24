@@ -345,9 +345,14 @@ def _add_clash_proxy_groups(config: dict, nodes: List[Proxy],
                                 expanded_proxies.append(node.Remark)
                                 used_in_group.add(node.Remark)
                                 matched = True
-                    if not matched and rule not in used_in_group:
-                        expanded_proxies.append(rule)
-                        used_in_group.add(rule)
+                    # If regex matched nothing, skip it (don't add as literal)
+                    # Unless it looks like a simple proxy name (no regex special chars)
+                    if not matched:
+                        special_chars = set('.*+?^$()[]{}|\\')
+                        if not any(c in rule for c in special_chars):
+                            if rule not in used_in_group:
+                                expanded_proxies.append(rule)
+                                used_in_group.add(rule)
                 except re.error:
                     if rule not in used_in_group:
                         expanded_proxies.append(rule)
@@ -562,10 +567,12 @@ def proxy_to_surge(nodes: List[Proxy], base_conf: str,
                                 used_in_this_group.add(node.Remark)
                                 matched_any = True
                     if not matched_any:
-                        # Treat as literal proxy/group name if no regex match
-                        if rule not in used_in_this_group:
-                            proxies.append(rule)
-                            used_in_this_group.add(rule)
+                        # If it looks like a regex (has special chars), skip; else literal name
+                        special_chars = set('.*+?^$()[]{}|\\')
+                        if not any(c in rule for c in special_chars):
+                            if rule not in used_in_this_group:
+                                proxies.append(rule)
+                                used_in_this_group.add(rule)
                 except re.error:
                     # Not a valid regex, treat as literal name
                     if rule not in used_in_this_group:
