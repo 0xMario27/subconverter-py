@@ -959,12 +959,12 @@ def explode(link: str, node: Proxy) -> bool:
     elif link_lower.startswith("tg://"):
         explode_tg(link, node)
     elif link_lower.startswith("anytls://"):
-        # AnyTLS - simplified handler
+        # AnyTLS - simple handler (fully parse if needed)
         _common_construct(node, ProxyType.AnyTLS, DEFAULT_GROUPS[ProxyType.AnyTLS],
-                          "", link)
+                          "", "", "0")
     elif link_lower.startswith("mieru://"):
         _common_construct(node, ProxyType.Mieru, DEFAULT_GROUPS[ProxyType.Mieru],
-                          "", link)
+                          "", "", "0")
     else:
         return False
 
