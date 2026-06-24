@@ -301,6 +301,8 @@ def _add_clash_proxy_groups(config: dict, nodes: List[Proxy],
     """Add proxy groups to Clash config."""
     groups = list(extra_groups) if extra_groups else []
     all_remark_names = [n.Remark for n in nodes if n.Remark]
+    # Collect all known group names (for group reference detection)
+    all_group_names = {g.Name for g in groups}
 
     # Add default select group if not present
     if not any(g.Name == 'Proxy' or g.Name == '🚀 Proxy' for g in groups):
@@ -310,6 +312,7 @@ def _add_clash_proxy_groups(config: dict, nodes: List[Proxy],
             Proxies=list(all_remark_names)
         )
         groups.insert(0, default_group)
+        all_group_names.add('Proxy')
 
     config['proxy-groups'] = []
     config.pop('Proxy Group', None)
@@ -329,6 +332,11 @@ def _add_clash_proxy_groups(config: dict, nodes: List[Proxy],
                     if node.Group == target_group and node.Remark not in used_in_group:
                         expanded_proxies.append(node.Remark)
                         used_in_group.add(node.Remark)
+            elif rule in all_group_names:
+                # Reference to another proxy group
+                if rule not in used_in_group:
+                    expanded_proxies.append(rule)
+                    used_in_group.add(rule)
             elif rule == 'DIRECT' or rule == 'REJECT' or rule == 'REJECT-TINYGIF':
                 if rule not in used_in_group:
                     expanded_proxies.append(rule)
@@ -345,8 +353,6 @@ def _add_clash_proxy_groups(config: dict, nodes: List[Proxy],
                                 expanded_proxies.append(node.Remark)
                                 used_in_group.add(node.Remark)
                                 matched = True
-                    # If regex matched nothing, skip it (don't add as literal)
-                    # Unless it looks like a simple proxy name (no regex special chars)
                     if not matched:
                         special_chars = set('.*+?^$()[]{}|\\')
                         if not any(c in rule for c in special_chars):
@@ -359,7 +365,8 @@ def _add_clash_proxy_groups(config: dict, nodes: List[Proxy],
                         used_in_group.add(rule)
 
         if not expanded_proxies:
-            continue
+            # Don't skip - other groups may reference this one
+            pass
 
         group = {
             'name': g.Name,
@@ -534,6 +541,7 @@ def proxy_to_surge(nodes: List[Proxy], base_conf: str,
     # Generate proxy groups
     result.append("[Proxy Group]")
     all_remark_names = [n.Remark for n in nodes if n.Remark]
+    all_group_names = {g.Name for g in extra_groups}
 
     for g in extra_groups:
         proxies = []
@@ -550,6 +558,11 @@ def proxy_to_surge(nodes: List[Proxy], base_conf: str,
                     if node.Group == target_group and node.Remark not in used_in_this_group:
                         proxies.append(node.Remark)
                         used_in_this_group.add(node.Remark)
+            elif rule in all_group_names:
+                # Reference to another proxy group
+                if rule not in used_in_this_group:
+                    proxies.append(rule)
+                    used_in_this_group.add(rule)
             elif rule == 'DIRECT' or rule == 'REJECT' or rule == 'REJECT-TINYGIF':
                 if rule not in used_in_this_group:
                     proxies.append(rule)
