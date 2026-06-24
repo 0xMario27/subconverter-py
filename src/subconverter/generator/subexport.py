@@ -392,9 +392,27 @@ def proxy_to_surge(nodes: List[Proxy], base_conf: str,
                     proxies.append(rule)
                     used_in_this_group.add(rule)
             else:
-                if rule not in used_in_this_group:
-                    proxies.append(rule)
-                    used_in_this_group.add(rule)
+                # Try as regex pattern to match node remarks
+                import re
+                try:
+                    pattern = re.compile(rule)
+                    matched_any = False
+                    for node in nodes:
+                        if node.Remark and pattern.search(node.Remark):
+                            if node.Remark not in used_in_this_group:
+                                proxies.append(node.Remark)
+                                used_in_this_group.add(node.Remark)
+                                matched_any = True
+                    if not matched_any:
+                        # Treat as literal proxy/group name if no regex match
+                        if rule not in used_in_this_group:
+                            proxies.append(rule)
+                            used_in_this_group.add(rule)
+                except re.error:
+                    # Not a valid regex, treat as literal name
+                    if rule not in used_in_this_group:
+                        proxies.append(rule)
+                        used_in_this_group.add(rule)
 
         if not proxies:
             continue
