@@ -441,8 +441,9 @@ def proxy_to_surge(nodes: List[Proxy], base_conf: str,
             # Check if it's an inline rule (GEOIP, FINAL, etc.)
             if rule_path.startswith('inline:') or content.startswith('GEOIP') or content.startswith('FINAL'):
                 rule_text = content
-                if rule_text == 'FINAL':
-                    rule_text = 'MATCH'
+                # Surge uses FINAL (not MATCH which is Clash-specific)
+                if rule_text == 'MATCH':
+                    rule_text = 'FINAL'
                 result.append(f"{rule_text},{rc.rule_group}")
                 continue
 
